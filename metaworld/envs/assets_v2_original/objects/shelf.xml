@@ -1,0 +1,9 @@
+<mujoco model="shelf_goal">
+    <include file="assets/shelf_dependencies.xml"/>
+    <include file="../../assets_v2/scene/basic_scene.xml"/>
+    <worldbody>
+        <body pos="0 0.8 0">
+            <include file="../../assets_v2/objects/assets/shelf.xml"/>
+        </body>
+    </worldbody>
+</mujoco>

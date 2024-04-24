@@ -11,7 +11,7 @@ from typing import Sequence, Union
 
 import numpy as np
 
-from metaworld.envs.mujoco.sawyer_xyz import SawyerXYZEnv, v2
+from metaworld.envs.mujoco.sawyer_xyz import SawyerXYZEnv, v2, v2_original
 
 # Utils
 
@@ -70,6 +70,10 @@ ENV_CLS_MAP = {
     "sweep-v2": v2.SawyerSweepEnvV2,
     "window-open-v2": v2.SawyerWindowOpenEnvV2,
     "window-close-v2": v2.SawyerWindowCloseEnvV2,
+    "soccer-v2-original": v2_original.SawyerSoccerEnvV2,
+    "stick-push-v2-original": v2_original.SawyerStickPushEnvV2,
+    "stick-pull-v2-original": v2_original.SawyerStickPullEnvV2,
+    "shelf-place-v2-original": v2_original.SawyerShelfPlaceEnvV2,
 }
 
 
@@ -260,6 +264,10 @@ ALL_V2_ENVIRONMENTS = _get_env_dict(
         "sweep-v2",
         "window-open-v2",
         "window-close-v2",
+        "soccer-v2-original",
+        "stick-push-v2-original",
+        "stick-pull-v2-original",
+        "shelf-place-v2-original",
     ]
 )
 
@@ -285,7 +293,13 @@ MT10_V2 = _get_env_dict(
 )
 MT10_V2_ARGS_KWARGS = _get_args_kwargs(ALL_V2_ENVIRONMENTS, MT10_V2)
 
-MT50_V2 = ALL_V2_ENVIRONMENTS
+MT50_V2 = OrderedDict(
+    {
+        key: value
+        for key, value in ALL_V2_ENVIRONMENTS.items()
+        if not key.endswith("-original")
+    }
+)
 MT50_V2_ARGS_KWARGS = _get_args_kwargs(ALL_V2_ENVIRONMENTS, MT50_V2)
 
 # ML Dicts

@@ -1,0 +1,10 @@
+<mujoco model="stick">
+    <include file="../../assets_v2/objects/assets/stick_dependencies.xml"/>
+    <include file="../../assets_v2/scene/basic_scene.xml"/>
+    <worldbody>
+        <body pos="0 0.4 0">
+            <freejoint/>
+            <include file="assets/stick.xml"/>
+        </body>
+    </worldbody>
+</mujoco>

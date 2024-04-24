@@ -1,0 +1,10 @@
+<mujoco model="soccer_ball">
+    <include file="../../assets_v2/objects/assets/soccer_dependencies.xml"/>
+    <include file="../../assets_v2/scene/basic_scene.xml"/>
+    <worldbody>
+      <body pos="0 .4 .05">
+        <freejoint/>
+        <include file="assets/soccer_ball.xml"/>
+      </body>
+    </worldbody>
+</mujoco>
