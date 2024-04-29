@@ -148,3 +148,4 @@ Pipfile
 Pipfile.lock
 
 mujoco_migration.py
+xml_verification_env/

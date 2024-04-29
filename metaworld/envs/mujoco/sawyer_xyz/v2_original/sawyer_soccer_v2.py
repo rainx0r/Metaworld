@@ -77,7 +77,7 @@ class SawyerSoccerEnvV2(SawyerXYZEnv):
         near_object = float(tcp_to_obj <= 0.03)
         assert self.obj_init_pos is not None
         grasp_success = float(
-            self.touching_object
+            self.touching_object  # type: ignore
             and (tcp_opened > 0)
             and (obj[2] - 0.02 > self.obj_init_pos[2])
         )

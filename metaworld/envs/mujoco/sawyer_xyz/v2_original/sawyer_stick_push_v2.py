@@ -76,7 +76,7 @@ class SawyerStickPushEnvV2(SawyerXYZEnv):
         success = float(np.linalg.norm(container - self._target_pos) <= 0.12)
         near_object = float(tcp_to_obj <= 0.03)
         grasp_success = float(
-            self.touching_object
+            self.touching_object  # type: ignore
             and (tcp_open > 0)
             and (stick[2] - 0.01 > self.stick_init_pos[2])
         )
