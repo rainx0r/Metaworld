@@ -42,7 +42,12 @@ def main() -> None:
             env_2.set_task(task_2)
 
             check_environments_match(
-                env_1, env_2, num_steps=NUM_STEPS, seed=SEED, skip_render=True
+                env_1,
+                env_2,
+                num_steps=NUM_STEPS,
+                seed=SEED,
+                skip_render=True,
+                info_comparison="skip",  # obviously grasp_success differs
             )
             print(f"Checked {env}.\n")
         except Exception as e:
