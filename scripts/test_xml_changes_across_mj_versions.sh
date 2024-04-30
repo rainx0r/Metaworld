@@ -21,10 +21,8 @@ python -m pip install -e .
 
 # Loop through mj versions, install it and run the script
 for version in ${MUJOCO_VERSIONS[@]}; do
-    # Install MuJoCo at the specified version
     python -m pip install --upgrade "mujoco==$version"
 
-    # Run the script 'script.py'
     echo "------------------------"
     python scripts/xml_changes_verification.py "${1:-}"
     echo "------------------------"
