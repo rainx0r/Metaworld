@@ -10,6 +10,47 @@ from tqdm import tqdm  # type: ignore
 import metaworld
 
 
+def collect_trajectory(
+    env_name: str, num_steps: int, seed: int, torquscale: float | None = None
+):
+    print("MuJoCo version:", mujoco.__version__)
+    print("Number of steps:", num_steps)
+    print("Env:", env_name)
+    print("Seed:", seed)
+
+    observations = []
+    frames = []
+    actions = []
+    rewards = []
+    terminateds = []
+    truncateds = []
+
+    b = metaworld.MT1(env_name, seed=seed)
+    env_cls_name = list(b.train_classes.keys())[0]
+    env = b.train_classes[env_cls_name](
+        camera_name="corner3", render_mode="rgb_array", torquescale=torquscale
+    )
+    task = [task for task in b.train_tasks if task.env_name == env_cls_name][0]
+    env.set_task(task)
+    env.reset(seed=seed)
+    env.action_space.seed(seed=seed)
+    env.max_path_length = num_steps
+
+    for _ in tqdm(range(num_steps)):
+        action = env.action_space.sample()
+        obs, rew, terminated, truncated, _ = env.step(action)
+        frame = env.render().copy()
+
+        observations.append(obs)
+        actions.append(action)
+        frames.append(frame)
+        rewards.append(rew)
+        terminateds.append(terminated)
+        truncateds.append(truncated)
+
+    return observations, actions, frames, rewards, terminateds, truncateds
+
+
 def main() -> None:
     SEED = 42
     NUM_STEPS = 1_000
@@ -30,44 +71,16 @@ def main() -> None:
                 f"Invalid number of steps {sys.argv[2]}. Please use a valid integer."
             )
 
-    print("MuJoCo version:", mujoco.__version__)
-    print("Number of steps:", NUM_STEPS)
-    print("Env:", env_name)
-    print("Seed:", SEED)
-
-    observations = []
-    frames = []
-    actions = []
-    rewards = []
-    terminateds = []
-    truncateds = []
-
-    b = metaworld.MT1(env_name, seed=SEED)
-    env_cls_name = list(b.train_classes.keys())[0]
-    env = b.train_classes[env_cls_name](camera_name="corner3", render_mode="rgb_array")
-    task = [task for task in b.train_tasks if task.env_name == env_cls_name][0]
-    env.set_task(task)
-    env.reset(seed=SEED)
-    env.action_space.seed(seed=SEED)
-    env.max_path_length = NUM_STEPS
-
-    for _ in tqdm(range(NUM_STEPS)):
-        action = env.action_space.sample()
-        obs, rew, terminated, truncated, _ = env.step(action)
-        frame = env.render().copy()
-
-        observations.append(obs)
-        actions.append(action)
-        frames.append(frame)
-        rewards.append(rew)
-        terminateds.append(terminated)
-        truncateds.append(truncated)
+    observations, frames, actions, rewards, terminateds, truncateds = (
+        collect_trajectory(env_name, NUM_STEPS, SEED)
+    )
 
     # Save video
     videos_dir = pathlib.Path("videos")
     videos_dir.mkdir(exist_ok=True)
+    # HACK should load the fps from the env but anyway
     gymnasium.utils.save_video.save_video(
-        frames, str(videos_dir), name_prefix=env_name, fps=env.metadata["render_fps"]
+        frames, str(videos_dir), name_prefix=env_name, fps=80
     )
 
     # Save trajectory to parquet

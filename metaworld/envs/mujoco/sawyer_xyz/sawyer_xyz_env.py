@@ -46,6 +46,8 @@ class SawyerMocapBase(mjenv_gym):
         render_mode: RenderMode | None = None,
         camera_name: str | None = None,
         camera_id: int | None = None,
+        torquescale: float | None = None,
+        relpose_quat: tuple[float, float, float, float] | None = None,
     ) -> None:
         mjenv_gym.__init__(
             self,
@@ -56,6 +58,8 @@ class SawyerMocapBase(mjenv_gym):
             camera_name=camera_name,
             camera_id=camera_id,
         )
+        self.torquescale = torquescale or 5.0
+        self.relpose_quat = relpose_quat or (-1.0, 0.0, 0.0, 0.0)
         self.reset_mocap_welds()
         self.frame_skip = frame_skip
 
@@ -131,7 +135,16 @@ class SawyerMocapBase(mjenv_gym):
             for i in range(self.model.eq_data.shape[0]):
                 if self.model.eq_type[i] == mujoco.mjtEq.mjEQ_WELD:
                     self.model.eq_data[i] = np.array(
-                        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 5]
+                        [
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            *self.relpose_quat,
+                            self.torquescale,
+                        ]
                     )
 
 
@@ -179,6 +192,8 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         render_mode: RenderMode | None = None,
         camera_id: int | None = None,
         camera_name: str | None = None,
+        torquescale: float | None = None,
+        relpose_quat: tuple[float, float, float, float] | None = None,
     ) -> None:
         self.action_scale = action_scale
         self.action_rot_scale = action_rot_scale
@@ -211,6 +226,8 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
             render_mode=render_mode,
             camera_name=camera_name,
             camera_id=camera_id,
+            torquescale=torquescale,
+            relpose_quat=relpose_quat,
         )
 
         mujoco.mj_forward(
