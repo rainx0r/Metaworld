@@ -96,6 +96,7 @@ celerybeat-schedule
 # Environments
 .env
 .venv
+.venv2/
 env/
 venv/
 ENV/
@@ -148,3 +149,7 @@ Pipfile
 Pipfile.lock
 
 mujoco_migration.py
+trajectories/
+videos/
+*.mp4
+*.webm
