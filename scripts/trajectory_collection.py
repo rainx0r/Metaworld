@@ -63,10 +63,6 @@ def main() -> None:
         terminateds.append(terminated)
         truncateds.append(truncated)
 
-    # Check obs deterministic
-    print(observations[0])
-    print(observations[-1])
-
     # Save video
     videos_dir = pathlib.Path("videos")
     videos_dir.mkdir(exist_ok=True)
