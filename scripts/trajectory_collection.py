@@ -56,7 +56,7 @@ def collect_trajectory(
         terminateds.append(terminated)
         truncateds.append(truncated)
 
-    return observations, actions, frames, rewards, terminateds, truncateds
+    return observations, frames, actions, rewards, terminateds, truncateds
 
 
 def main() -> None:
@@ -83,14 +83,6 @@ def main() -> None:
         collect_trajectory(env_name, NUM_STEPS, SEED)
     )
 
-    # Save video
-    videos_dir = pathlib.Path("videos")
-    videos_dir.mkdir(exist_ok=True)
-    # HACK should load the fps from the env but anyway
-    gymnasium.utils.save_video.save_video(
-        frames, str(videos_dir), name_prefix=env_name, fps=80
-    )
-
     # Save trajectory to parquet
     data_dir = pathlib.Path("trajectories")
     data_dir.mkdir(exist_ok=True)
@@ -104,6 +96,14 @@ def main() -> None:
         }
     )
     df.write_parquet(data_dir / f"{env_name}.parquet")
+
+    # Save video
+    videos_dir = pathlib.Path("videos")
+    videos_dir.mkdir(exist_ok=True)
+    # HACK should load the fps from the env but anyway
+    gymnasium.utils.save_video.save_video(
+        frames, str(videos_dir), name_prefix=env_name, fps=80
+    )
 
 
 if __name__ == "__main__":

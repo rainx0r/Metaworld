@@ -58,7 +58,7 @@ class SawyerMocapBase(mjenv_gym):
             camera_name=camera_name,
             camera_id=camera_id,
         )
-        self.torquescale = torquescale or 5.0
+        self.torquescale = torquescale or 8.220044674722434  # 5.0
         self.relpose_quat = relpose_quat or (-1.0, 0.0, 0.0, 0.0)
         self.reset_mocap_welds()
         self.frame_skip = frame_skip
