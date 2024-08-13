@@ -20,6 +20,8 @@ class SawyerNutAssemblyEnvV2(SawyerXYZEnv):
         render_mode: RenderMode | None = None,
         camera_name: str | None = None,
         camera_id: int | None = None,
+        torquescale: float | None = None,
+        relpose_quat: tuple[float, float, float, float] | None = None,
     ) -> None:
         hand_low = (-0.5, 0.40, 0.05)
         hand_high = (0.5, 1, 0.5)
@@ -34,6 +36,8 @@ class SawyerNutAssemblyEnvV2(SawyerXYZEnv):
             render_mode=render_mode,
             camera_name=camera_name,
             camera_id=camera_id,
+            torquescale=torquescale,
+            relpose_quat=relpose_quat,
         )
 
         self.init_config: InitConfigDict = {

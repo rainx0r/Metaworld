@@ -33,7 +33,10 @@ class SawyerReachEnvV2(SawyerXYZEnv):
         render_mode: RenderMode | None = None,
         camera_name: str | None = None,
         camera_id: int | None = None,
+        torquescale: float | None = None,
+        relpose_quat: tuple[float, float, float, float] | None = None,
     ) -> None:
+
         goal_low = (-0.1, 0.8, 0.05)
         goal_high = (0.1, 0.9, 0.3)
         hand_low = (-0.5, 0.40, 0.05)
@@ -47,6 +50,8 @@ class SawyerReachEnvV2(SawyerXYZEnv):
             render_mode=render_mode,
             camera_name=camera_name,
             camera_id=camera_id,
+            torquescale=torquescale,
+            relpose_quat=relpose_quat,
         )
 
         self.init_config: InitConfigDict = {
