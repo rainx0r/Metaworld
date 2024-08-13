@@ -30,12 +30,14 @@ def test_weld_settings(
     rew_arr = np.array(rewards)
     tgt_rew_arr = tgt_data["rew"].to_numpy()
 
-    obs_mse, obs_mae = compare_trajectories.get_mse_loss(
-        obs_arr, tgt_obs_arr
-    ), compare_trajectories.get_mae_loss(obs_arr, tgt_obs_arr)
-    rew_mse, rew_mae = compare_trajectories.get_mse_loss(
-        rew_arr, tgt_rew_arr
-    ), compare_trajectories.get_mae_loss(rew_arr, tgt_rew_arr)
+    obs_mse, obs_mae = (
+        compare_trajectories.get_mse_loss(obs_arr, tgt_obs_arr),
+        compare_trajectories.get_mae_loss(obs_arr, tgt_obs_arr),
+    )
+    rew_mse, rew_mae = (
+        compare_trajectories.get_mse_loss(rew_arr, tgt_rew_arr),
+        compare_trajectories.get_mae_loss(rew_arr, tgt_rew_arr),
+    )
 
     return {
         "loss/obs_mse": obs_mse,
@@ -75,7 +77,7 @@ def main() -> None:
         max: float | None = None,
         search_center: float | None = None,
         is_integer: bool = False,
-        rounding_factor: float = 1.0,
+        rounding_factor: int = 1,
     ):
         wandb_param = wandb_params[name]
         if min is None:
@@ -98,6 +100,8 @@ def main() -> None:
             assert search_center is not None
         else:
             raise ValueError(f"Invalid CARBS space: {space} (log/linear)")
+
+        assert search_center is not None
 
         return carbs.Param(
             name=name,
@@ -128,12 +132,13 @@ def main() -> None:
         )
 
         suggestion = carbs_run.suggest().suggestion
+        assert isinstance(suggestion["torquescale"], float)
         print("Suggestion:", suggestion)
         wandb.config.update(suggestion)
 
         try:
             losses = test_weld_settings(
-                tgt_data_path=tgt_data_path,
+                tgt_data_path=pathlib.Path(tgt_data_path),
                 env_name=env_name,
                 torquescale=suggestion["torquescale"],
             )
@@ -145,8 +150,12 @@ def main() -> None:
             observed_value = losses[TARGET_METRIC]
             obs_out = carbs_run.observe(
                 carbs.ObservationInParam(
-                    input=suggestion, output=observed_value, cost=0
+                    input=suggestion, output=float(observed_value), cost=0
                 )
             )
 
     wandb.agent(sweep_id, _sweep_main, count=TRIALS)
+
+
+if __name__ == "__main__":
+    main()

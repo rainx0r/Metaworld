@@ -153,3 +153,4 @@ trajectories/
 videos/
 *.mp4
 *.webm
+wandb/
