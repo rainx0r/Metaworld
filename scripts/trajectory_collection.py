@@ -1,6 +1,8 @@
 import pathlib
 import sys
 
+import numpy as np
+import numpy.typing as npt
 import gymnasium.utils
 import gymnasium.utils.save_video
 import mujoco
@@ -11,7 +13,11 @@ import metaworld
 
 
 def collect_trajectory(
-    env_name: str, num_steps: int, seed: int, torquscale: float | None = None
+    env_name: str,
+    num_steps: int,
+    seed: int,
+    torquscale: float | None = None,
+    render: bool = True,
 ):
     print("MuJoCo version:", mujoco.__version__)
     print("Number of steps:", num_steps)
@@ -39,11 +45,13 @@ def collect_trajectory(
     for _ in tqdm(range(num_steps)):
         action = env.action_space.sample()
         obs, rew, terminated, truncated, _ = env.step(action)
-        frame = env.render().copy()
+        if render:
+            frame = env.render()
+            assert frame is not None
+            frames.append(frame.copy())
 
         observations.append(obs)
         actions.append(action)
-        frames.append(frame)
         rewards.append(rew)
         terminateds.append(terminated)
         truncateds.append(truncated)

@@ -154,3 +154,4 @@ videos/
 *.mp4
 *.webm
 wandb/
+checkpoints/

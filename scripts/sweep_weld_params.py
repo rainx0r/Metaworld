@@ -1,5 +1,6 @@
 import pathlib
 import sys
+import time
 
 import carbs  # type: ignore
 import compare_trajectories
@@ -10,7 +11,7 @@ import wandb
 import wandb.util
 
 INITIAL_TORQUESCALE_VAL = 5.0
-TARGET_METRIC = "loss/obs_mse"
+TARGET_METRIC = "loss/log_obs_mae"
 TRIALS = 100
 SEED = 42
 NUM_STEPS = 1_000
@@ -21,14 +22,18 @@ def test_weld_settings(
 ) -> dict[str, np.float64]:
     tgt_data = pl.read_parquet(tgt_data_path)
     obs, _, _, rewards, _, _ = trajectory_collection.collect_trajectory(
-        env_name=env_name, num_steps=NUM_STEPS, seed=SEED, torquscale=torquescale
+        env_name=env_name,
+        num_steps=NUM_STEPS,
+        seed=SEED,
+        torquscale=torquescale,
+        render=False,
     )
 
     obs_arr = np.array(obs)
     tgt_obs_arr = tgt_data["obs"].to_numpy()
 
     rew_arr = np.array(rewards)
-    tgt_rew_arr = tgt_data["rew"].to_numpy()
+    tgt_rew_arr = tgt_data["reward"].to_numpy()
 
     obs_mse, obs_mae = (
         compare_trajectories.get_mse_loss(obs_arr, tgt_obs_arr),
@@ -42,8 +47,12 @@ def test_weld_settings(
     return {
         "loss/obs_mse": obs_mse,
         "loss/obs_mae": obs_mae,
+        "loss/log_obs_mae": np.log(obs_mae),
+        "loss/log_obs_mse": np.log(obs_mse),
         "loss/rew_mse": rew_mse,
         "loss/rew_mae": rew_mae,
+        "loss/log_rew_mse": np.log(rew_mse),
+        "loss/log_rew_mae": np.log(rew_mae),
     }
 
 
@@ -137,20 +146,24 @@ def main() -> None:
         wandb.config.update(suggestion)
 
         try:
+            start = time.time()
             losses = test_weld_settings(
                 tgt_data_path=pathlib.Path(tgt_data_path),
                 env_name=env_name,
                 torquescale=suggestion["torquescale"],
             )
+            wandb.log(losses)
+            end = time.time()
         except Exception as e:
             import traceback
 
             traceback.print_exc()
         else:
             observed_value = losses[TARGET_METRIC]
+            print("Loss:", observed_value)
             obs_out = carbs_run.observe(
                 carbs.ObservationInParam(
-                    input=suggestion, output=float(observed_value), cost=0
+                    input=suggestion, output=float(observed_value), cost=1.0
                 )
             )
 
