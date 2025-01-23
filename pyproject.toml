@@ -1,6 +1,6 @@
 # Package ######################################################################
 [build-system]
-requires = ["setuptools >= 61.0.0"]
+requires = ["setuptools>=75.6.0", "pybind11>=2.13.6", "mujoco>=3.2.6"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -13,7 +13,7 @@ authors = [{ name = "Farama Foundation", email = "contact@farama.org" }]
 license = { text = "MIT License" }
 keywords = ["Reinforcement Learning", "game", "RL", "AI", "gymnasium"]
 classifiers = [
-    "Development Status :: 4 - Beta", # change to `5 - Production/Stable` when ready
+    "Development Status :: 4 - Beta",                             # change to `5 - Production/Stable` when ready
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -28,12 +28,13 @@ dependencies = [
     "mujoco>=3.0.0",
     "numpy>=1.18",
     "scipy>=1.4.1",
-    "imageio"
+    "imageio",
 ]
 
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
 testing = ["ipdb", "memory_profiler", "pyquaternion==0.9.5", "pytest>=4.4.0"]
+build = ["setuptools>=75.6.0", "pybind11>=2.13.6", "mujoco>=3.2.6"]
 dev = ["black", "isort", "mypy"]
 
 [project.urls]
@@ -47,6 +48,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 metaworld = ["py.typed"]
+metaworld_cpp = ["*.pyi"]
 
 [tool.setuptools.packages.find]
 include = ["metaworld", "metaworld.*"]

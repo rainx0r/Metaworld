@@ -1,0 +1,2 @@
+CompileFlags:
+  Add: [-I../.venv/lib/python3.12/site-packages/mujoco/include, -I../.venv/lib/python3.12/site-packages/pybind11/include, -I/opt/homebrew/Cellar/python@3.12/3.12.8/Frameworks/Python.framework/Versions/3.12/include/python3.12]

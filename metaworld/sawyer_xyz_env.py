@@ -10,7 +10,7 @@ from typing import Any, Callable, Literal, SupportsFloat
 import mujoco
 import numpy as np
 import numpy.typing as npt
-from gymnasium.envs.mujoco import MujocoEnv as mjenv_gym
+from gymnasium.envs.mujoco.mujoco_env import MujocoEnv as mjenv_gym
 from gymnasium.spaces import Box, Discrete, Space
 from gymnasium.utils import seeding
 from gymnasium.utils.ezpickle import EzPickle
@@ -18,6 +18,8 @@ from typing_extensions import TypeAlias
 
 from metaworld.types import XYZ, EnvironmentStateDict, ObservationDict, Task
 from metaworld.utils import reward_utils
+
+from metaworld_cpp import touching_object
 
 RenderMode: TypeAlias = "Literal['human', 'rgb_array', 'depth_array']"
 
@@ -385,48 +387,48 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         Returns:
             Whether the gripper is touching the object
         """
-        return self.touching_object(self._get_id_main_object())
+        return touching_object(self.model, self.data, self._get_id_main_object())
 
-    def touching_object(self, object_geom_id: int) -> bool:
-        """Determines whether the gripper is touching the object with given id.
-
-        Args:
-            object_geom_id: the ID of the object in question
-
-        Returns:
-            Whether the gripper is touching the object
-        """
-
-        leftpad_geom_id = self.data.geom("leftpad_geom").id
-        rightpad_geom_id = self.data.geom("rightpad_geom").id
-
-        leftpad_object_contacts = [
-            x
-            for x in self.data.contact
-            if (
-                leftpad_geom_id in (x.geom1, x.geom2)
-                and object_geom_id in (x.geom1, x.geom2)
-            )
-        ]
-
-        rightpad_object_contacts = [
-            x
-            for x in self.data.contact
-            if (
-                rightpad_geom_id in (x.geom1, x.geom2)
-                and object_geom_id in (x.geom1, x.geom2)
-            )
-        ]
-
-        leftpad_object_contact_force = sum(
-            self.data.efc_force[x.efc_address] for x in leftpad_object_contacts
-        )
-
-        rightpad_object_contact_force = sum(
-            self.data.efc_force[x.efc_address] for x in rightpad_object_contacts
-        )
-
-        return 0 < leftpad_object_contact_force and 0 < rightpad_object_contact_force
+    # def touching_object(self, object_geom_id: int) -> bool:
+    #     """Determines whether the gripper is touching the object with given id.
+    #
+    #     Args:
+    #         object_geom_id: the ID of the object in question
+    #
+    #     Returns:
+    #         Whether the gripper is touching the object
+    #     """
+    #
+    #     leftpad_geom_id = self.data.geom("leftpad_geom").id
+    #     rightpad_geom_id = self.data.geom("rightpad_geom").id
+    #
+    #     leftpad_object_contacts = [
+    #         x
+    #         for x in self.data.contact
+    #         if (
+    #             leftpad_geom_id in (x.geom1, x.geom2)
+    #             and object_geom_id in (x.geom1, x.geom2)
+    #         )
+    #     ]
+    #
+    #     rightpad_object_contacts = [
+    #         x
+    #         for x in self.data.contact
+    #         if (
+    #             rightpad_geom_id in (x.geom1, x.geom2)
+    #             and object_geom_id in (x.geom1, x.geom2)
+    #         )
+    #     ]
+    #
+    #     leftpad_object_contact_force = sum(
+    #         self.data.efc_force[x.efc_address] for x in leftpad_object_contacts
+    #     )
+    #
+    #     rightpad_object_contact_force = sum(
+    #         self.data.efc_force[x.efc_address] for x in rightpad_object_contacts
+    #     )
+    #
+    #     return 0 < leftpad_object_contact_force and 0 < rightpad_object_contact_force
 
     def _get_id_main_object(self) -> int:
         return self.data.geom("objGeom").id

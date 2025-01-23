@@ -64,12 +64,12 @@ def make_envs(benchmark: metaworld.Benchmark) -> gymnasium.vector.VectorEnv:
         tasks = [
             task for task in benchmark.train_tasks if task.env_name == env_cls_name
         ]
-        env = gymnasium.wrappers.TimeLimit(env, env.max_path_length)  # type: ignore
-        env = gymnasium.wrappers.RecordEpisodeStatistics(env)  # type: ignore
-        env = RandomTaskSelectWrapper(env, tasks)  # type: ignore
+        env = gymnasium.wrappers.TimeLimit(env, env.max_path_length)
+        env = gymnasium.wrappers.RecordEpisodeStatistics(env)
+        env = RandomTaskSelectWrapper(env, tasks)  # pyright: ignore[reportArgumentType]
         return env
 
-    return gymnasium.vector.AsyncVectorEnv(
+    return gymnasium.vector.SyncVectorEnv(
         [
             partial(_make_env_internal, env_cls, env_cls_name)
             for env_cls_name, env_cls in benchmark.train_classes.items()
