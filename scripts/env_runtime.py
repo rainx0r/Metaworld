@@ -27,7 +27,7 @@ class RandomTaskSelectWrapper(gymnasium.Wrapper):
 
     def _set_random_task(self):
         task_idx = self.np_random.choice(len(self.tasks))
-        self.unwrapped.set_task(self.tasks[task_idx])
+        self.unwrapped.set_task(self.tasks[task_idx])  # pyright: ignore[reportAttributeAccessIssue]
 
     def __init__(
         self,

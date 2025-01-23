@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false, reportUnusedParameter=false
 """Base classes for all the envs."""
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ import mujoco
 import numpy as np
 import numpy.typing as npt
 from gymnasium.envs.mujoco.mujoco_env import MujocoEnv as mjenv_gym
-from gymnasium.spaces import Box, Discrete, Space
+from gymnasium.spaces import Box, Space
 from gymnasium.utils import seeding
 from gymnasium.utils.ezpickle import EzPickle
 from typing_extensions import TypeAlias
@@ -134,7 +135,7 @@ class SawyerMocapBase(mjenv_gym):
             for i in range(self.model.eq_data.shape[0]):
                 if self.model.eq_type[i] == mujoco.mjtEq.mjEQ_WELD:
                     self.model.eq_data[i] = np.array(
-                        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 5.0]
+                        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 5.0]
                     )
 
 
@@ -227,7 +228,7 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         self.init_left_pad: npt.NDArray[Any] = self.get_body_com("leftpad")
         self.init_right_pad: npt.NDArray[Any] = self.get_body_com("rightpad")
 
-        self.action_space = Box(  # type: ignore
+        self.action_space = Box(
             np.array([-1, -1, -1, -1]),
             np.array([+1, +1, +1, +1]),
             dtype=np.float32,
@@ -328,16 +329,16 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
 
     def discretize_goal_space(self, goals: list) -> None:
         """Discretizes the goal space into a Discrete space.
-        Current disabled and callign it will stop execution.
+        Current disabled and calling it will stop execution.
 
         Args:
             goals: List of goals to discretize
         """
+        # assert len(goals) >= 1
+        # self.discrete_goals = goals
+        # # update the goal_space to a Discrete space
+        # self.discrete_goal_space = Discrete(len(self.discrete_goals))
         assert False, "Discretization is not supported at the moment."
-        assert len(goals) >= 1
-        self.discrete_goals = goals
-        # update the goal_space to a Discrete space
-        self.discrete_goal_space = Discrete(len(self.discrete_goals))
 
     def _set_obj_xyz(self, pos: npt.NDArray[Any]) -> None:
         """Sets the position of the object.
@@ -499,7 +500,9 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         obs_obj_padded[: len(obj_pos) + len(obj_quat)] = np.hstack(
             [np.hstack((pos, quat)) for pos, quat in zip(obj_pos_split, obj_quat_split)]
         )
-        return np.hstack((pos_hand, gripper_distance_apart, obs_obj_padded))
+        return np.hstack(
+            (pos_hand, gripper_distance_apart, obs_obj_padded), dtype=np.float64
+        )
 
     def _get_obs(self) -> npt.NDArray[np.float64]:
         """Frame stacks `_get_curr_obs_combined_no_goal()` and concatenates the goal position to form a single flat observation.
@@ -519,7 +522,7 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
 
     def _get_obs_dict(self) -> ObservationDict:
         obs = self._get_obs()
-        return dict(
+        return ObservationDict(
             state_observation=obs,
             state_desired_goal=self._get_pos_goal(),
             state_achieved_goal=obs[3:-3],
@@ -653,7 +656,7 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         return self._get_obs()
 
     def reset(
-        self, seed: int | None = None, options: dict[str, Any] | None = None
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[npt.NDArray[np.float64], dict[str, Any]]:
         """Resets the environment.
 
@@ -701,7 +704,7 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
             return rand_vec
         else:
             assert self._random_reset_space is not None
-            rand_vec: npt.NDArray[np.float64] = np.random.uniform(  # type: ignore
+            rand_vec: npt.NDArray[np.float64] = np.random.uniform(
                 self._random_reset_space.low,
                 self._random_reset_space.high,
                 size=self._random_reset_space.low.size,
