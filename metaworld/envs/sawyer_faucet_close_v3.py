@@ -10,7 +10,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerFaucetCloseEnvV3(SawyerXYZEnv):
@@ -132,21 +133,21 @@ class SawyerFaucetCloseEnvV3(SawyerXYZEnv):
             target_to_obj_init = self.obj_init_pos - target
             target_to_obj_init = np.linalg.norm(target_to_obj_init)
 
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 target_to_obj,
                 bounds=(0, self._target_radius),
                 margin=abs(target_to_obj_init - self._target_radius),
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             faucet_reach_radius = 0.01
             tcp_to_obj = float(np.linalg.norm(obj - tcp))
             tcp_to_obj_init = np.linalg.norm(self.obj_init_pos - self.init_tcp)
-            reach = reward_utils.tolerance(
+            reach = reward_utils_cpp.tolerance(
                 tcp_to_obj,
                 bounds=(0, faucet_reach_radius),
                 margin=abs(tcp_to_obj_init - faucet_reach_radius),
-                sigmoid="gaussian",
+                sigmoid=reward_utils_cpp.SigmoidType.Gaussian,
             )
 
             tcp_opened = 0

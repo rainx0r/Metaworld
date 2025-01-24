@@ -9,7 +9,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import HammerInitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerHammerEnvV3(SawyerXYZEnv):
@@ -131,11 +132,11 @@ class SawyerHammerEnvV3(SawyerXYZEnv):
         a = 0.1  # Relative importance of just *trying* to lift the hammer
         b = 0.9  # Relative importance of hitting the nail
         lifted = hammer_head[2] > 0.02
-        in_place = a * float(lifted) + b * reward_utils.tolerance(
+        in_place = a * float(lifted) + b * reward_utils_cpp.tolerance(
             np.linalg.norm(pos_error),
             bounds=(0, 0.02),
             margin=0.2,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
 
         return in_place

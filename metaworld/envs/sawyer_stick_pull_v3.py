@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import ObservationDict, StickInitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerStickPullEnvV3(SawyerXYZEnv):
@@ -195,29 +196,29 @@ class SawyerStickPullEnvV3(SawyerXYZEnv):
             stick_in_place_margin = float(
                 np.linalg.norm((self.stick_init_pos - container_init_pos) * yz_scaling)
             )
-            stick_in_place = reward_utils.tolerance(
+            stick_in_place = reward_utils_cpp.tolerance(
                 stick_to_container,
                 bounds=(0, _TARGET_RADIUS),
                 margin=stick_in_place_margin,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             stick_to_target = float(np.linalg.norm(stick - target))
             stick_in_place_margin_2 = float(np.linalg.norm(self.stick_init_pos - target))
-            stick_in_place_2 = reward_utils.tolerance(
+            stick_in_place_2 = reward_utils_cpp.tolerance(
                 stick_to_target,
                 bounds=(0, _TARGET_RADIUS),
                 margin=stick_in_place_margin_2,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             container_to_target = float(np.linalg.norm(container - target))
             container_in_place_margin = float(np.linalg.norm(self.obj_init_pos - target))
-            container_in_place = reward_utils.tolerance(
+            container_in_place = reward_utils_cpp.tolerance(
                 container_to_target,
                 bounds=(0, _TARGET_RADIUS),
                 margin=container_in_place_margin,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             object_grasped = self._gripper_caging_reward(
@@ -237,7 +238,7 @@ class SawyerStickPullEnvV3(SawyerXYZEnv):
             )
             object_grasped = 1 if grasp_success else object_grasped
 
-            in_place_and_object_grasped = reward_utils.hamacher_product(
+            in_place_and_object_grasped = reward_utils_cpp.hamacher_product(
                 object_grasped, stick_in_place
             )
             reward = in_place_and_object_grasped

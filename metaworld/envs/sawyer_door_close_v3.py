@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerDoorCloseEnvV3(SawyerXYZEnv):
@@ -124,19 +125,19 @@ class SawyerDoorCloseEnvV3(SawyerXYZEnv):
             obj_to_target = float(np.linalg.norm(obj - target))
 
             in_place_margin = np.linalg.norm(self.obj_init_pos - target)
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 obj_to_target,
                 bounds=(0, _TARGET_RADIUS),
                 margin=in_place_margin,
-                sigmoid="gaussian",
+                sigmoid=reward_utils_cpp.SigmoidType.Gaussian,
             )
 
             hand_margin = float(np.linalg.norm(self.hand_init_pos - obj)) + 0.1
-            hand_in_place = reward_utils.tolerance(
+            hand_in_place = reward_utils_cpp.tolerance(
                 tcp_to_target,
                 bounds=(0, 0.25 * _TARGET_RADIUS),
                 margin=hand_margin,
-                sigmoid="gaussian",
+                sigmoid=reward_utils_cpp.SigmoidType.Gaussian,
             )
 
             reward = 3 * hand_in_place + 6 * in_place

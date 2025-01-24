@@ -9,7 +9,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerPickOutOfHoleEnvV3(SawyerXYZEnv):
@@ -140,11 +141,11 @@ class SawyerPickOutOfHoleEnvV3(SawyerXYZEnv):
             above_floor = (
                 1.0
                 if gripper[2] >= floor
-                else reward_utils.tolerance(
+                else reward_utils_cpp.tolerance(
                     max(floor - gripper[2], 0.0),
                     bounds=(0.0, 0.01),
                     margin=0.02,
-                    sigmoid="long_tail",
+                    sigmoid=reward_utils_cpp.SigmoidType.LongTail,
                 )
             )
             object_grasped = self._gripper_caging_reward(
@@ -157,10 +158,10 @@ class SawyerPickOutOfHoleEnvV3(SawyerXYZEnv):
                 desired_gripper_effort=0.1,
                 high_density=True,
             )
-            in_place = reward_utils.tolerance(
-                obj_to_target, bounds=(0, 0.02), margin=in_place_margin, sigmoid="long_tail"
+            in_place = reward_utils_cpp.tolerance(
+                obj_to_target, bounds=(0, 0.02), margin=in_place_margin, sigmoid=reward_utils_cpp.SigmoidType.LongTail
             )
-            reward = reward_utils.hamacher_product(object_grasped, in_place)
+            reward = reward_utils_cpp.hamacher_product(object_grasped, in_place)
 
             near_object = tcp_to_obj < 0.04
             pinched_without_obj = obs[3] < 0.33
@@ -168,7 +169,7 @@ class SawyerPickOutOfHoleEnvV3(SawyerXYZEnv):
             # Increase reward when properly grabbed obj
             grasp_success = near_object and lifted and not pinched_without_obj
             if grasp_success:
-                reward += 1.0 + 5.0 * reward_utils.hamacher_product(in_place, above_floor)
+                reward += 1.0 + 5.0 * reward_utils_cpp.hamacher_product(in_place, above_floor)
             # Maximize reward on success
             if obj_to_target < self.TARGET_RADIUS:
                 reward = 10.0

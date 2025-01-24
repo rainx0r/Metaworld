@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerReachEnvV3(SawyerXYZEnv):
@@ -148,11 +149,11 @@ class SawyerReachEnvV3(SawyerXYZEnv):
             # obj_to_target = float(np.linalg.norm(obj - target))
 
             in_place_margin = float(np.linalg.norm(self.hand_init_pos - target))
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 tcp_to_target,
                 bounds=(0, _TARGET_RADIUS),
                 margin=in_place_margin,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             return (10 * in_place, tcp_to_target, in_place)

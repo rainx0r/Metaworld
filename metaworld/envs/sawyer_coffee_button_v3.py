@@ -9,7 +9,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerCoffeeButtonEnvV3(SawyerXYZEnv):
@@ -137,20 +138,20 @@ class SawyerCoffeeButtonEnvV3(SawyerXYZEnv):
             obj_to_target = abs(self._target_pos[1] - obj[1])
 
             tcp_closed = max(obs[3], 0.0)
-            near_button = reward_utils.tolerance(
+            near_button = reward_utils_cpp.tolerance(
                 tcp_to_obj,
                 bounds=(0, 0.05),
                 margin=tcp_to_obj_init,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
-            button_pressed = reward_utils.tolerance(
+            button_pressed = reward_utils_cpp.tolerance(
                 obj_to_target,
                 bounds=(0, 0.005),
                 margin=self.max_dist,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
-            reward = 2 * reward_utils.hamacher_product(tcp_closed, near_button)
+            reward = 2 * reward_utils_cpp.hamacher_product(tcp_closed, near_button)
             if tcp_to_obj <= 0.05:
                 reward += 8 * button_pressed
 

@@ -9,7 +9,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerWindowOpenEnvV3(SawyerXYZEnv):
@@ -134,11 +135,11 @@ class SawyerWindowOpenEnvV3(SawyerXYZEnv):
             target_to_obj_init = self.obj_init_pos[0] - target[0]
             target_to_obj_init = float(np.linalg.norm(target_to_obj_init))
 
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 target_to_obj,
                 bounds=(0, self.TARGET_RADIUS),
                 margin=abs(target_to_obj_init - self.TARGET_RADIUS),
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             handle_radius = 0.02
@@ -146,16 +147,16 @@ class SawyerWindowOpenEnvV3(SawyerXYZEnv):
             tcp_to_obj_init = float(
                 np.linalg.norm(self.window_handle_pos_init - self.init_tcp)
             )
-            reach = reward_utils.tolerance(
+            reach = reward_utils_cpp.tolerance(
                 tcp_to_obj,
                 bounds=(0, handle_radius),
                 margin=abs(tcp_to_obj_init - handle_radius),
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
             tcp_opened = 0.0
             object_grasped = reach
 
-            reward = 10 * reward_utils.hamacher_product(reach, in_place)
+            reward = 10 * reward_utils_cpp.hamacher_product(reach, in_place)
             return (reward, tcp_to_obj, tcp_opened, target_to_obj, object_grasped, in_place)
         elif self.reward_function_version == 'v1':
             del actions

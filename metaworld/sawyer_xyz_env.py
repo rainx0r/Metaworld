@@ -18,9 +18,10 @@ from gymnasium.utils.ezpickle import EzPickle
 from typing_extensions import TypeAlias
 
 from metaworld.types import XYZ, EnvironmentStateDict, ObservationDict, Task
-from metaworld.utils import reward_utils
+
 
 from metaworld_cpp import touching_object
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 RenderMode: TypeAlias = "Literal['human', 'rgb_array', 'depth_array']"
 
@@ -794,15 +795,15 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         # That part is left to the reward functions of individual environments.
         caging_lr_margin = np.abs(pad_to_objinit_lr - pad_success_thresh)
         caging_lr = [
-            reward_utils.tolerance(
+            reward_utils_cpp.tolerance(
                 pad_to_obj_lr[i],  # "x" in the description above
                 bounds=(obj_radius, pad_success_thresh),
                 margin=caging_lr_margin[i],  # "margin" in the description above
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
             for i in range(2)
         ]
-        caging_y = reward_utils.hamacher_product(*caging_lr)
+        caging_y = reward_utils_cpp.hamacher_product(*caging_lr)
 
         # MARK: X-Z gripper information for caging reward-----------------------
         tcp = self.tcp_center
@@ -814,11 +815,11 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         # reward is maximized and changes very little
         caging_xz_margin = np.linalg.norm(self.obj_init_pos[xz] - self.init_tcp[xz])
         caging_xz_margin -= xz_thresh
-        caging_xz = reward_utils.tolerance(
+        caging_xz = reward_utils_cpp.tolerance(
             np.linalg.norm(tcp[xz] - obj_pos[xz]),  # "x" in the description above
             bounds=(0, xz_thresh),
             margin=caging_xz_margin,  # "margin" in the description above
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
 
         # MARK: Closed-extent gripper information for caging reward-------------
@@ -827,9 +828,9 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         )
 
         # MARK: Combine components----------------------------------------------
-        caging = reward_utils.hamacher_product(caging_y, float(caging_xz))
+        caging = reward_utils_cpp.hamacher_product(caging_y, float(caging_xz))
         gripping = gripper_closed if caging > 0.97 else 0.0
-        caging_and_gripping = reward_utils.hamacher_product(caging, gripping)
+        caging_and_gripping = reward_utils_cpp.hamacher_product(caging, gripping)
 
         if high_density:
             caging_and_gripping = (caging_and_gripping + caging) / 2
@@ -841,11 +842,11 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
             # - We subtract `object_reach_radius` from the margin so that the
             #   reward always starts with a value of 0.1
             reach_margin = abs(tcp_to_obj_init - object_reach_radius)
-            reach = reward_utils.tolerance(
+            reach = reward_utils_cpp.tolerance(
                 tcp_to_obj,
                 bounds=(0, object_reach_radius),
                 margin=reach_margin,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
             caging_and_gripping = (caging_and_gripping + float(reach)) / 2
 

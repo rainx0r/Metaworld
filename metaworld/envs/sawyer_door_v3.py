@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerDoorEnvV3(SawyerXYZEnv):
@@ -144,31 +145,31 @@ class SawyerDoorEnvV3(SawyerXYZEnv):
         above_floor = (
             1.0
             if hand[2] >= floor
-            else reward_utils.tolerance(
+            else reward_utils_cpp.tolerance(
                 floor - hand[2],
                 bounds=(0.0, 0.01),
                 margin=floor / 2.0,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
         )
         # move the hand to a position between the handle and the main door body
-        in_place = reward_utils.tolerance(
+        in_place = reward_utils_cpp.tolerance(
             float(np.linalg.norm(hand - door - np.array([0.05, 0.03, -0.01]))),
             bounds=(0, threshold / 2.0),
             margin=0.5,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
-        ready_to_open = reward_utils.hamacher_product(above_floor, in_place)
+        ready_to_open = reward_utils_cpp.hamacher_product(above_floor, in_place)
 
         # now actually open the door
         door_angle = -theta
         a = 0.2  # Relative importance of just *trying* to open the door at all
         b = 0.8  # Relative importance of fully opening the door
-        opened = a * float(theta < -np.pi / 90.0) + b * reward_utils.tolerance(
+        opened = a * float(theta < -np.pi / 90.0) + b * reward_utils_cpp.tolerance(
             np.pi / 2.0 + np.pi / 6 - door_angle,
             bounds=(0, 0.5),
             margin=np.pi / 3.0,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
 
         return ready_to_open, opened
@@ -187,7 +188,7 @@ class SawyerDoorEnvV3(SawyerXYZEnv):
 
             reward = sum(
                 (
-                    2.0 * reward_utils.hamacher_product(reward_steps[0], reward_grab),
+                    2.0 * reward_utils_cpp.hamacher_product(reward_steps[0], reward_grab),
                     8.0 * reward_steps[1],
                 )
             )

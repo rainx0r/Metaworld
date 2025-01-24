@@ -9,7 +9,7 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict, ObservationDict
-from metaworld.utils.reward_utils import tolerance
+from metaworld_cpp import reward_utils as reward_utils_cpp
 
 
 class SawyerNutAssemblyEnvV3(SawyerXYZEnv):
@@ -154,11 +154,11 @@ class SawyerNutAssemblyEnvV3(SawyerXYZEnv):
         a = 0.1  # Relative importance of just *trying* to lift the wrench
         b = 0.9  # Relative importance of placing the wrench on the peg
         lifted = wrench_center[2] > 0.02 or radius < threshold
-        in_place = a * float(lifted) + b * tolerance(
+        in_place = a * float(lifted) + b * reward_utils_cpp.tolerance(
             float(np.linalg.norm(pos_error * scale)),
             bounds=(0, 0.02),
             margin=0.4,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
 
         return in_place, success

@@ -9,7 +9,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerDoorUnlockEnvV3(SawyerXYZEnv):
@@ -137,19 +138,19 @@ class SawyerDoorUnlockEnvV3(SawyerXYZEnv):
             # This `ready_to_push` reward should be a *hint* for the agent, not an
             # end in itself. Make sure to devalue it compared to the value of
             # actually unlocking the lock
-            ready_to_push = reward_utils.tolerance(
+            ready_to_push = reward_utils_cpp.tolerance(
                 float(np.linalg.norm(shoulder_to_lock)),
                 bounds=(0, 0.02),
                 margin=np.linalg.norm(shoulder_to_lock_init),
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             obj_to_target = abs(float(self._target_pos[0] - lock[0]))
-            pushed = reward_utils.tolerance(
+            pushed = reward_utils_cpp.tolerance(
                 obj_to_target,
                 bounds=(0, 0.005),
                 margin=self._lock_length,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             reward = 2 * ready_to_push + 8 * pushed

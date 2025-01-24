@@ -11,7 +11,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerShelfPlaceEnvV3(SawyerXYZEnv):
@@ -149,11 +150,11 @@ class SawyerShelfPlaceEnvV3(SawyerXYZEnv):
             tcp_to_obj = float(np.linalg.norm(obj - tcp))
             in_place_margin = np.linalg.norm(self.obj_init_pos - target)
 
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 obj_to_target,
                 bounds=(0, _TARGET_RADIUS),
                 margin=in_place_margin,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             object_grasped = self._gripper_caging_reward(
@@ -165,7 +166,7 @@ class SawyerShelfPlaceEnvV3(SawyerXYZEnv):
                 xz_thresh=0.01,
                 high_density=False,
             )
-            reward = reward_utils.hamacher_product(object_grasped, in_place)
+            reward = reward_utils_cpp.hamacher_product(object_grasped, in_place)
 
             if (
                 0.0 < obj[2] < 0.24
@@ -176,7 +177,7 @@ class SawyerShelfPlaceEnvV3(SawyerXYZEnv):
                 y_scaling = (obj[1] - (target[1] - 3 * _TARGET_RADIUS)) / (
                     3 * _TARGET_RADIUS
                 )
-                bound_loss = reward_utils.hamacher_product(y_scaling, z_scaling)
+                bound_loss = reward_utils_cpp.hamacher_product(y_scaling, z_scaling)
                 in_place = np.clip(in_place - bound_loss, 0.0, 1.0)
 
             if (

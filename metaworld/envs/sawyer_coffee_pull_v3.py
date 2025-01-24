@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerCoffeePullEnvV3(SawyerXYZEnv):
@@ -144,11 +145,11 @@ class SawyerCoffeePullEnvV3(SawyerXYZEnv):
             target_to_obj_init = (self.obj_init_pos - target) * scale
             target_to_obj_init = np.linalg.norm(target_to_obj_init)
 
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 target_to_obj,
                 bounds=(0, 0.05),
                 margin=target_to_obj_init,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
             tcp_opened = obs[3]
             tcp_to_obj = float(np.linalg.norm(obj - self.tcp_center))
@@ -164,7 +165,7 @@ class SawyerCoffeePullEnvV3(SawyerXYZEnv):
                 medium_density=True,
             )
 
-            reward = reward_utils.hamacher_product(object_grasped, in_place)
+            reward = reward_utils_cpp.hamacher_product(object_grasped, in_place)
 
             if tcp_to_obj < 0.04 and tcp_opened > 0:
                 reward += 1.0 + 5.0 * in_place

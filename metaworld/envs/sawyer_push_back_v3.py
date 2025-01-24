@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerPushBackEnvV3(SawyerXYZEnv):
@@ -161,37 +162,37 @@ class SawyerPushBackEnvV3(SawyerXYZEnv):
             abs(obj_pos[1] - self.init_left_pad[1]) - pad_success_margin
         )
 
-        right_caging = reward_utils.tolerance(
+        right_caging = reward_utils_cpp.tolerance(
             delta_object_y_right_pad,
             bounds=(obj_radius, pad_success_margin),
             margin=right_caging_margin,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
-        left_caging = reward_utils.tolerance(
+        left_caging = reward_utils_cpp.tolerance(
             delta_object_y_left_pad,
             bounds=(obj_radius, pad_success_margin),
             margin=left_caging_margin,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
 
-        right_gripping = reward_utils.tolerance(
+        right_gripping = reward_utils_cpp.tolerance(
             delta_object_y_right_pad,
             bounds=(obj_radius, grip_success_margin),
             margin=right_caging_margin,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
-        left_gripping = reward_utils.tolerance(
+        left_gripping = reward_utils_cpp.tolerance(
             delta_object_y_left_pad,
             bounds=(obj_radius, grip_success_margin),
             margin=left_caging_margin,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
 
         assert right_caging >= 0 and right_caging <= 1
         assert left_caging >= 0 and left_caging <= 1
 
-        y_caging = reward_utils.hamacher_product(right_caging, left_caging)
-        y_gripping = reward_utils.hamacher_product(right_gripping, left_gripping)
+        y_caging = reward_utils_cpp.hamacher_product(right_caging, left_caging)
+        y_gripping = reward_utils_cpp.hamacher_product(right_gripping, left_gripping)
 
         assert y_caging >= 0 and y_caging <= 1
 
@@ -205,17 +206,17 @@ class SawyerPushBackEnvV3(SawyerXYZEnv):
         tcp_obj_x_z_margin = (
             np.linalg.norm(init_obj_x_z - init_tcp_x_z, ord=2) - x_z_success_margin
         )
-        x_z_caging = reward_utils.tolerance(
+        x_z_caging = reward_utils_cpp.tolerance(
             float(tcp_obj_norm_x_z),
             bounds=(0, x_z_success_margin),
             margin=tcp_obj_x_z_margin,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
 
         assert right_caging >= 0 and right_caging <= 1
         gripper_closed = min(max(0, action[-1]), 1)
         assert gripper_closed >= 0 and gripper_closed <= 1
-        caging = reward_utils.hamacher_product(y_caging, x_z_caging)
+        caging = reward_utils_cpp.hamacher_product(y_caging, x_z_caging)
         assert caging >= 0 and caging <= 1
 
         if caging > 0.95:
@@ -240,15 +241,15 @@ class SawyerPushBackEnvV3(SawyerXYZEnv):
             target_to_obj = float(np.linalg.norm(obj - self._target_pos))
             target_to_obj_init = float(np.linalg.norm(self.obj_init_pos - self._target_pos))
 
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 target_to_obj,
                 bounds=(0, self.TARGET_RADIUS),
                 margin=target_to_obj_init,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
             object_grasped = self._gripper_caging_reward(action, obj, self.OBJ_RADIUS)
 
-            reward = reward_utils.hamacher_product(object_grasped, in_place)
+            reward = reward_utils_cpp.hamacher_product(object_grasped, in_place)
 
             if (
                 (tcp_to_obj < 0.01)

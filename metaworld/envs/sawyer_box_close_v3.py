@@ -10,7 +10,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerBoxCloseEnvV3(SawyerXYZEnv):
@@ -153,32 +154,32 @@ class SawyerBoxCloseEnvV3(SawyerXYZEnv):
         above_floor = (
             1.0
             if hand[2] >= floor
-            else reward_utils.tolerance(
+            else reward_utils_cpp.tolerance(
                 floor - hand[2],
                 bounds=(0.0, 0.01),
                 margin=floor / 2.0,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
         )
         # grab the lid's handle
-        in_place = reward_utils.tolerance(
+        in_place = reward_utils_cpp.tolerance(
             float(np.linalg.norm(hand - lid)),
             bounds=(0, 0.02),
             margin=0.5,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
-        ready_to_lift = reward_utils.hamacher_product(above_floor, in_place)
+        ready_to_lift = reward_utils_cpp.hamacher_product(above_floor, in_place)
 
         # now actually put the lid on the box
         pos_error = target_pos - lid
         error_scale = np.array([1.0, 1.0, 3.0])  # Emphasize Z error
         a = 0.2  # Relative importance of just *trying* to lift the lid at all
         b = 0.8  # Relative importance of placing the lid on the box
-        lifted = a * float(lid[2] > 0.04) + b * reward_utils.tolerance(
+        lifted = a * float(lid[2] > 0.04) + b * reward_utils_cpp.tolerance(
             float(np.linalg.norm(pos_error * error_scale)),
             bounds=(0, 0.05),
             margin=0.25,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
 
         return ready_to_lift, lifted
@@ -196,7 +197,7 @@ class SawyerBoxCloseEnvV3(SawyerXYZEnv):
 
             reward = sum(
                 (
-                    2.0 * reward_utils.hamacher_product(reward_grab, reward_steps[0]),
+                    2.0 * reward_utils_cpp.hamacher_product(reward_grab, reward_steps[0]),
                     8.0 * reward_steps[1],
                 )
             )

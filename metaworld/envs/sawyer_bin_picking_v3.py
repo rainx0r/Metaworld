@@ -9,7 +9,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerBinPickingEnvV3(SawyerXYZEnv):
@@ -152,11 +153,11 @@ class SawyerBinPickingEnvV3(SawyerXYZEnv):
             if self._target_to_obj_init is None:
                 self._target_to_obj_init = target_to_obj
 
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 target_to_obj,
                 bounds=(0, self.TARGET_RADIUS),
                 margin=self._target_to_obj_init,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             threshold = 0.03
@@ -177,11 +178,11 @@ class SawyerBinPickingEnvV3(SawyerXYZEnv):
             above_floor = (
                 1.0
                 if hand[2] >= floor
-                else reward_utils.tolerance(
+                else reward_utils_cpp.tolerance(
                     max(floor - hand[2], 0.0),
                     bounds=(0.0, 0.01),
                     margin=0.05,
-                    sigmoid="long_tail",
+                    sigmoid=reward_utils_cpp.SigmoidType.LongTail,
                 )
             )
 
@@ -195,7 +196,7 @@ class SawyerBinPickingEnvV3(SawyerXYZEnv):
                 desired_gripper_effort=0.7,
                 high_density=True,
             )
-            reward = reward_utils.hamacher_product(object_grasped, in_place)
+            reward = reward_utils_cpp.hamacher_product(object_grasped, in_place)
 
             near_object = bool(np.linalg.norm(obj - hand) < 0.04)
             pinched_without_obj = bool(obs[3] < 0.43)
@@ -203,7 +204,7 @@ class SawyerBinPickingEnvV3(SawyerXYZEnv):
             # Increase reward when properly grabbed obj
             grasp_success = near_object and lifted and not pinched_without_obj
             if grasp_success:
-                reward += 1.0 + 5.0 * reward_utils.hamacher_product(above_floor, in_place)
+                reward += 1.0 + 5.0 * reward_utils_cpp.hamacher_product(above_floor, in_place)
             # Maximize reward on success
             if target_to_obj < self.TARGET_RADIUS:
                 reward = 10.0

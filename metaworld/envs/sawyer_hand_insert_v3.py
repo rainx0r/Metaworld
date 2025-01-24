@@ -9,7 +9,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerHandInsertEnvV3(SawyerXYZEnv):
@@ -130,11 +131,11 @@ class SawyerHandInsertEnvV3(SawyerXYZEnv):
             target_to_obj = float(np.linalg.norm(obj - self._target_pos))
             target_to_obj_init = float(np.linalg.norm(self.obj_init_pos - self._target_pos))
 
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 target_to_obj,
                 bounds=(0, self.TARGET_RADIUS),
                 margin=target_to_obj_init,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             object_grasped = self._gripper_caging_reward(
@@ -146,7 +147,7 @@ class SawyerHandInsertEnvV3(SawyerXYZEnv):
                 xz_thresh=0.005,
                 high_density=True,
             )
-            reward = reward_utils.hamacher_product(object_grasped, in_place)
+            reward = reward_utils_cpp.hamacher_product(object_grasped, in_place)
 
             tcp_opened = obs[3]
             tcp_to_obj = float(np.linalg.norm(obj - self.tcp_center))

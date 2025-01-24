@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerPlateSlideBackSideEnvV3(SawyerXYZEnv):
@@ -151,20 +152,20 @@ class SawyerPlateSlideBackSideEnvV3(SawyerXYZEnv):
 
             obj_to_target = float(np.linalg.norm(obj - target))
             in_place_margin = float(np.linalg.norm(self.obj_init_pos - target))
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 obj_to_target,
                 bounds=(0, _TARGET_RADIUS),
                 margin=in_place_margin - _TARGET_RADIUS,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             tcp_to_obj = float(np.linalg.norm(tcp - obj))
             obj_grasped_margin = float(np.linalg.norm(self.init_tcp - self.obj_init_pos))
-            object_grasped = reward_utils.tolerance(
+            object_grasped = reward_utils_cpp.tolerance(
                 tcp_to_obj,
                 bounds=(0, _TARGET_RADIUS),
                 margin=obj_grasped_margin - _TARGET_RADIUS,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             reward = 1.5 * object_grasped

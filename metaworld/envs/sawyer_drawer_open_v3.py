@@ -9,7 +9,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerDrawerOpenEnvV3(SawyerXYZEnv):
@@ -120,8 +121,8 @@ class SawyerDrawerOpenEnvV3(SawyerXYZEnv):
 
             handle_error = float(np.linalg.norm(handle - self._target_pos))
 
-            reward_for_opening = reward_utils.tolerance(
-                handle_error, bounds=(0, 0.02), margin=self.maxDist, sigmoid="long_tail"
+            reward_for_opening = reward_utils_cpp.tolerance(
+                handle_error, bounds=(0, 0.02), margin=self.maxDist, sigmoid=reward_utils_cpp.SigmoidType.LongTail
             )
 
             handle_pos_init = self._target_pos + np.array([0.0, self.maxDist, 0.0])
@@ -134,11 +135,11 @@ class SawyerDrawerOpenEnvV3(SawyerXYZEnv):
             gripper_error = (handle - gripper) * scale
             gripper_error_init = (handle_pos_init - self.init_tcp) * scale
 
-            reward_for_caging = reward_utils.tolerance(
+            reward_for_caging = reward_utils_cpp.tolerance(
                 float(np.linalg.norm(gripper_error)),
                 bounds=(0, 0.01),
                 margin=np.linalg.norm(gripper_error_init),
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             reward = reward_for_caging + reward_for_opening

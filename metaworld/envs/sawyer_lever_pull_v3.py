@@ -11,7 +11,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerLeverPullEnvV3(SawyerXYZEnv):
@@ -142,11 +143,11 @@ class SawyerLeverPullEnvV3(SawyerXYZEnv):
             # This `ready_to_lift` reward should be a *hint* for the agent, not an
             # end in itself. Make sure to devalue it compared to the value of
             # actually lifting the lever
-            ready_to_lift = reward_utils.tolerance(
+            ready_to_lift = reward_utils_cpp.tolerance(
                 float(np.linalg.norm(shoulder_to_lever)),
                 bounds=(0, 0.02),
                 margin=np.linalg.norm(shoulder_to_lever_init),
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             # The skill of the agent should be measured by its ability to get the
@@ -160,26 +161,26 @@ class SawyerLeverPullEnvV3(SawyerXYZEnv):
             # We'll set the margin to 15deg from horizontal. Angles below that will
             # receive some reward to incentivize exploration, but we don't want to
             # reward accidents too much. Past 15deg is probably intentional movement
-            lever_engagement = reward_utils.tolerance(
+            lever_engagement = reward_utils_cpp.tolerance(
                 lever_error,
                 bounds=(0, np.pi / 48.0),
                 margin=(np.pi / 2.0) - (np.pi / 12.0),
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             target = self._target_pos
             obj_to_target = float(np.linalg.norm(lever - target))
             in_place_margin = float(np.linalg.norm(self._lever_pos_init - target))
 
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 obj_to_target,
                 bounds=(0, 0.04),
                 margin=in_place_margin,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             # reward = 2.0 * ready_to_lift + 8.0 * lever_engagement
-            reward = 10.0 * reward_utils.hamacher_product(ready_to_lift, in_place)
+            reward = 10.0 * reward_utils_cpp.hamacher_product(ready_to_lift, in_place)
             return (
                 reward,
                 float(np.linalg.norm(shoulder_to_lever)),

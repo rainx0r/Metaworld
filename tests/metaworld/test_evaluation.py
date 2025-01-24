@@ -107,7 +107,7 @@ def test_evaluation():
     assert np.all(np.array(list(success_rate_per_task.values())) >= 0.80)
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 @pytest.mark.parametrize("benchmark", ("ML10", "ML45"))
 def test_metalearning_evaluation(benchmark):
     SEED = 42

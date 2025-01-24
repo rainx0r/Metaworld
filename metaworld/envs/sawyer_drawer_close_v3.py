@@ -9,7 +9,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerDrawerCloseEnvV3(SawyerXYZEnv):
@@ -130,29 +131,29 @@ class SawyerDrawerCloseEnvV3(SawyerXYZEnv):
             target_to_obj_init = self.obj_init_pos - target
             target_to_obj_init = np.linalg.norm(target_to_obj_init)
 
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 target_to_obj,
                 bounds=(0, self.TARGET_RADIUS),
                 margin=abs(target_to_obj_init - self.TARGET_RADIUS),
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             handle_reach_radius = 0.005
             tcp_to_obj = float(np.linalg.norm(obj - tcp))
             tcp_to_obj_init = np.linalg.norm(self.obj_init_pos - self.init_tcp)
-            reach = reward_utils.tolerance(
+            reach = reward_utils_cpp.tolerance(
                 tcp_to_obj,
                 bounds=(0, handle_reach_radius),
                 margin=abs(tcp_to_obj_init - handle_reach_radius),
-                sigmoid="gaussian",
+                sigmoid=reward_utils_cpp.SigmoidType.Gaussian,
             )
             gripper_closed = min(max(0, action[-1]), 1)
 
-            reach = reward_utils.hamacher_product(reach, gripper_closed)
+            reach = reward_utils_cpp.hamacher_product(reach, gripper_closed)
             tcp_opened = 0
             object_grasped = reach
 
-            reward = reward_utils.hamacher_product(reach, in_place)
+            reward = reward_utils_cpp.hamacher_product(reach, in_place)
             if target_to_obj <= self.TARGET_RADIUS + 0.015:
                 reward = 1.0
 

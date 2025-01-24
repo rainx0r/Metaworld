@@ -9,7 +9,8 @@ from gymnasium.spaces import Box
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerButtonPressWallEnvV3(SawyerXYZEnv):
@@ -134,23 +135,23 @@ class SawyerButtonPressWallEnvV3(SawyerXYZEnv):
             tcp_to_obj_init = float(np.linalg.norm(obj - self.init_tcp))
             obj_to_target = abs(self._target_pos[1] - obj[1])
 
-            near_button = reward_utils.tolerance(
+            near_button = reward_utils_cpp.tolerance(
                 tcp_to_obj,
                 bounds=(0, 0.01),
                 margin=tcp_to_obj_init,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
-            button_pressed = reward_utils.tolerance(
+            button_pressed = reward_utils_cpp.tolerance(
                 obj_to_target,
                 bounds=(0, 0.005),
                 margin=self._obj_to_target_init,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             reward = 0.0
             if tcp_to_obj > 0.07:
                 tcp_status = (1 - obs[3]) / 2.0
-                reward = 2 * reward_utils.hamacher_product(tcp_status, near_button)
+                reward = 2 * reward_utils_cpp.hamacher_product(tcp_status, near_button)
             else:
                 reward = 2
                 reward += 2 * (1 + obs[3])

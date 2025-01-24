@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerPegInsertionSideEnvV3(SawyerXYZEnv):
@@ -175,11 +176,11 @@ class SawyerPegInsertionSideEnvV3(SawyerXYZEnv):
             in_place_margin = float(
                 np.linalg.norm((self.peg_head_pos_init - target) * scale)
             )
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 obj_to_target,
                 bounds=(0, self.TARGET_RADIUS),
                 margin=in_place_margin,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
             ip_orig = in_place
             brc_col_box_1 = self._get_site_pos("bottom_right_corner_collision_box_1")
@@ -187,16 +188,16 @@ class SawyerPegInsertionSideEnvV3(SawyerXYZEnv):
 
             brc_col_box_2 = self._get_site_pos("bottom_right_corner_collision_box_2")
             tlc_col_box_2 = self._get_site_pos("top_left_corner_collision_box_2")
-            collision_box_bottom_1 = reward_utils.rect_prism_tolerance(
-                curr=obj_head, one=tlc_col_box_1, zero=brc_col_box_1
+            collision_box_bottom_1 = reward_utils_cpp.rect_prism_tolerance(
+                obj_head, brc_col_box_1, tlc_col_box_1
             )
-            collision_box_bottom_2 = reward_utils.rect_prism_tolerance(
-                curr=obj_head, one=tlc_col_box_2, zero=brc_col_box_2
+            collision_box_bottom_2 = reward_utils_cpp.rect_prism_tolerance(
+                obj_head, brc_col_box_2, tlc_col_box_2
             )
-            collision_boxes = reward_utils.hamacher_product(
+            collision_boxes = reward_utils_cpp.hamacher_product(
                 collision_box_bottom_2, collision_box_bottom_1
             )
-            in_place = reward_utils.hamacher_product(in_place, collision_boxes)
+            in_place = reward_utils_cpp.hamacher_product(in_place, collision_boxes)
 
             pad_success_margin = 0.03
             object_reach_radius = 0.01
@@ -218,7 +219,7 @@ class SawyerPegInsertionSideEnvV3(SawyerXYZEnv):
                 and (obj[2] - 0.01 > self.obj_init_pos[2])
             ):
                 object_grasped = 1.0
-            in_place_and_object_grasped = reward_utils.hamacher_product(
+            in_place_and_object_grasped = reward_utils_cpp.hamacher_product(
                 object_grasped, in_place
             )
             reward = in_place_and_object_grasped

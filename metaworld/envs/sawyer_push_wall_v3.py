@@ -12,7 +12,8 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
 class SawyerPushWallEnvV3(SawyerXYZEnv):
@@ -169,18 +170,18 @@ class SawyerPushWallEnvV3(SawyerXYZEnv):
             obj_to_target = float(np.linalg.norm(obj - target))
             obj_to_target_init = float(np.linalg.norm(self.obj_init_pos - target))
 
-            in_place_part1 = reward_utils.tolerance(
+            in_place_part1 = reward_utils_cpp.tolerance(
                 obj_to_midpoint,
                 bounds=(0, _TARGET_RADIUS),
                 margin=obj_to_midpoint_init,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
-            in_place_part2 = reward_utils.tolerance(
+            in_place_part2 = reward_utils_cpp.tolerance(
                 obj_to_target,
                 bounds=(0, _TARGET_RADIUS),
                 margin=obj_to_target_init,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             object_grasped = self._gripper_caging_reward(

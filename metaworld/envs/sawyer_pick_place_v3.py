@@ -10,8 +10,9 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-from metaworld.utils import reward_utils
 
+
+import metaworld_cpp.reward_utils as reward_utils_cpp
 
 class SawyerPickPlaceEnvV3(SawyerXYZEnv):
     """SawyerPickPlaceEnv.
@@ -200,20 +201,20 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
             abs(obj_pos[1] - self.init_left_pad[1]) - pad_success_margin
         )
 
-        right_caging = reward_utils.tolerance(
+        right_caging = reward_utils_cpp.tolerance(
             delta_object_y_right_pad,
             bounds=(obj_radius, pad_success_margin),
             margin=right_caging_margin,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
-        left_caging = reward_utils.tolerance(
+        left_caging = reward_utils_cpp.tolerance(
             delta_object_y_left_pad,
             bounds=(obj_radius, pad_success_margin),
             margin=left_caging_margin,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
 
-        y_caging = reward_utils.hamacher_product(left_caging, right_caging)
+        y_caging = reward_utils_cpp.hamacher_product(left_caging, right_caging)
 
         # compute the tcp_obj distance in the x_z plane
         tcp_xz = tcp + np.array([0.0, -tcp[1], 0.0])
@@ -228,18 +229,18 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
             np.linalg.norm(init_obj_x_z - init_tcp_x_z, ord=2) - x_z_success_margin
         )
 
-        x_z_caging = reward_utils.tolerance(
+        x_z_caging = reward_utils_cpp.tolerance(
             tcp_obj_norm_x_z,
             bounds=(0, x_z_success_margin),
             margin=tcp_obj_x_z_margin,
-            sigmoid="long_tail",
+            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
         )
 
         gripper_closed = min(max(0, action[-1]), 1)
-        caging = reward_utils.hamacher_product(y_caging, x_z_caging)
+        caging = reward_utils_cpp.hamacher_product(y_caging, x_z_caging)
 
         gripping = gripper_closed if caging > 0.97 else 0.0
-        caging_and_gripping = reward_utils.hamacher_product(caging, gripping)
+        caging_and_gripping = reward_utils_cpp.hamacher_product(caging, gripping)
         caging_and_gripping = (caging_and_gripping + caging) / 2
         return caging_and_gripping
 
@@ -258,15 +259,15 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
             tcp_to_obj = float(np.linalg.norm(obj - tcp))
             in_place_margin = np.linalg.norm(self.obj_init_pos - target)
 
-            in_place = reward_utils.tolerance(
+            in_place = reward_utils_cpp.tolerance(
                 obj_to_target,
                 bounds=(0, _TARGET_RADIUS),
                 margin=in_place_margin,
-                sigmoid="long_tail",
+                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
             object_grasped = self._gripper_caging_reward(action, obj)
-            in_place_and_object_grasped = reward_utils.hamacher_product(
+            in_place_and_object_grasped = reward_utils_cpp.hamacher_product(
                 object_grasped, in_place
             )
             reward = in_place_and_object_grasped
