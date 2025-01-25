@@ -149,6 +149,7 @@ class SawyerDrawerCloseEnvV3(SawyerXYZEnv):
             )
             gripper_closed = min(max(0, action[-1]), 1)
 
+            # TODO: This used to be np.float32 so we get roughly 1e-10 precision error
             reach = reward_utils_cpp.hamacher_product(reach, gripper_closed)
             tcp_opened = 0
             object_grasped = reach

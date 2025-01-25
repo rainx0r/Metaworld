@@ -20,7 +20,7 @@ class SawyerStickPushEnvV3(SawyerXYZEnv):
         render_mode: RenderMode | None = None,
         camera_name: str | None = None,
         camera_id: int | None = None,
-        reward_function_version: str = "v2"
+        reward_function_version: str = "v2",
     ) -> None:
         hand_low = (-0.5, 0.40, 0.05)
         hand_high = (0.5, 1, 0.5)
@@ -162,108 +162,11 @@ class SawyerStickPushEnvV3(SawyerXYZEnv):
 
         return self._get_obs()
 
-    def _gripper_caging_reward(
-        self,
-        action: npt.NDArray[np.float32],
-        obj_pos: npt.NDArray[Any],
-        obj_radius: float,
-        pad_success_thresh: float,
-        object_reach_radius: float,
-        xz_thresh: float,
-        desired_gripper_effort: float = 1.0,
-        high_density: bool = False,
-        medium_density: bool = False,
-    ) -> float:
-        """Reward for agent grasping obj.
-
-        Args:
-            action(np.ndarray): (4,) array representing the action
-                delta(x), delta(y), delta(z), gripper_effort
-            obj_pos(np.ndarray): (3,) array representing the obj x,y,z
-            obj_radius(float):radius of object's bounding sphere
-            pad_success_thresh(float): successful distance of gripper_pad
-                to object
-            object_reach_radius(float): successful distance of gripper center
-                to the object.
-            xz_thresh(float): successful distance of gripper in x_z axis to the
-                object. Y axis not included since the caging function handles
-                    successful grasping in the Y axis.
-            desired_gripper_effort(float): desired gripper effort, defaults to 1.0.
-            high_density(bool): flag for high-density. Cannot be used with medium-density.
-            medium_density(bool): flag for medium-density. Cannot be used with high-density.
-        """
-        if high_density and medium_density:
-            raise ValueError("Can only be either high_density or medium_density")
-        # MARK: Left-right gripper information for caging reward----------------
-        left_pad = self.get_body_com("leftpad")
-        right_pad = self.get_body_com("rightpad")
-
-        # get current positions of left and right pads (Y axis)
-        pad_y_lr = np.hstack((left_pad[1], right_pad[1]))
-        # compare *current* pad positions with *current* obj position (Y axis)
-        pad_to_obj_lr = np.abs(pad_y_lr - obj_pos[1])
-        # compare *current* pad positions with *initial* obj position (Y axis)
-        pad_to_objinit_lr = np.abs(pad_y_lr - self.stick_init_pos[1])
-
-        caging_lr_margin = np.abs(pad_to_objinit_lr - pad_success_thresh)
-        caging_lr = [
-            reward_utils_cpp.tolerance(
-                pad_to_obj_lr[i],  # "x" in the description above
-                bounds=(obj_radius, pad_success_thresh),
-                margin=caging_lr_margin[i],  # "margin" in the description above
-                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-            )
-            for i in range(2)
-        ]
-        caging_y = reward_utils_cpp.hamacher_product(*caging_lr)
-
-        # MARK: X-Z gripper information for caging reward-----------------------
-        tcp = self.tcp_center
-        xz = [0, 2]
-
-        caging_xz_margin = np.linalg.norm(self.stick_init_pos[xz] - self.init_tcp[xz])
-        caging_xz_margin -= xz_thresh
-        caging_xz = reward_utils_cpp.tolerance(
-            float(
-                np.linalg.norm(tcp[xz] - obj_pos[xz])
-            ),  # "x" in the description above
-            bounds=(0, xz_thresh),
-            margin=caging_xz_margin,  # "margin" in the description above
-            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-        )
-
-        # MARK: Closed-extent gripper information for caging reward-------------
-        gripper_closed = (
-            min(max(0, action[-1]), desired_gripper_effort) / desired_gripper_effort
-        )
-
-        # MARK: Combine components----------------------------------------------
-        caging = reward_utils_cpp.hamacher_product(caging_y, caging_xz)
-        gripping = gripper_closed if caging > 0.97 else 0.0
-        caging_and_gripping = reward_utils_cpp.hamacher_product(caging, gripping)
-
-        if high_density:
-            caging_and_gripping = (caging_and_gripping + caging) / 2
-        if medium_density:
-            tcp = self.tcp_center
-            tcp_to_obj = np.linalg.norm(obj_pos - tcp)
-            tcp_to_obj_init = np.linalg.norm(self.stick_init_pos - self.init_tcp)
-            reach_margin = abs(tcp_to_obj_init - object_reach_radius)
-            reach = reward_utils_cpp.tolerance(
-                float(tcp_to_obj),
-                bounds=(0, object_reach_radius),
-                margin=reach_margin,
-                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-            )
-            caging_and_gripping = (caging_and_gripping + reach) / 2
-
-        return caging_and_gripping
-
     def compute_reward(
         self, action: npt.NDArray[Any], obs: npt.NDArray[np.float64]
     ) -> tuple[float, float, float, float, float, float]:
         assert self._target_pos is not None and self.obj_init_pos is not None
-        if self.reward_function_version == 'v2':
+        if self.reward_function_version == "v2":
             _TARGET_RADIUS: float = 0.12
             tcp = self.tcp_center
             stick = obs[4:7] + np.array([0.015, 0.0, 0.0])
@@ -301,6 +204,7 @@ class SawyerStickPushEnvV3(SawyerXYZEnv):
                 pad_success_thresh=0.05,
                 object_reach_radius=0.01,
                 xz_thresh=0.01,
+                obj_init_pos=self.stick_init_pos,
                 high_density=True,
             )
 

@@ -14,6 +14,7 @@ from metaworld.types import InitConfigDict
 
 import metaworld_cpp.reward_utils as reward_utils_cpp
 
+
 class SawyerPickPlaceEnvV3(SawyerXYZEnv):
     """SawyerPickPlaceEnv.
 
@@ -34,7 +35,7 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
         render_mode: RenderMode | None = None,
         camera_name: str | None = None,
         camera_id: int | None = None,
-        reward_function_version: str = "v2"
+        reward_function_version: str = "v2",
     ) -> None:
         goal_low = (-0.1, 0.8, 0.05)
         goal_high = (0.1, 0.9, 0.3)
@@ -159,13 +160,13 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
         self.heightTarget = self.objHeight + 0.04
 
         self.maxPlacingDist = (
-                np.linalg.norm(
-                    np.array(
-                        [self.obj_init_pos[0], self.obj_init_pos[1], self.heightTarget]
-                    )
-                    - np.array(self._target_pos)
+            np.linalg.norm(
+                np.array(
+                    [self.obj_init_pos[0], self.obj_init_pos[1], self.heightTarget]
                 )
-                + self.heightTarget
+                - np.array(self._target_pos)
+            )
+            + self.heightTarget
         )
 
         self.maxPushDist = np.linalg.norm(
@@ -174,81 +175,11 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
 
         return self._get_obs()
 
-    def _gripper_caging_reward(
-        self,
-        action: npt.NDArray[np.float32],
-        obj_pos: npt.NDArray[Any],
-        obj_radius: float = 0,  # All of these args are unused, just here to match
-        pad_success_thresh: float = 0,  # the parent's type signature
-        object_reach_radius: float = 0,
-        xz_thresh: float = 0,
-        desired_gripper_effort: float = 1.0,
-        high_density: bool = False,
-        medium_density: bool = False,
-    ) -> float:
-        pad_success_margin = 0.05
-        x_z_success_margin = 0.005
-        obj_radius = 0.015
-        tcp = self.tcp_center
-        left_pad = self.get_body_com("leftpad")
-        right_pad = self.get_body_com("rightpad")
-        delta_object_y_left_pad = left_pad[1] - obj_pos[1]
-        delta_object_y_right_pad = obj_pos[1] - right_pad[1]
-        right_caging_margin = abs(
-            abs(obj_pos[1] - self.init_right_pad[1]) - pad_success_margin
-        )
-        left_caging_margin = abs(
-            abs(obj_pos[1] - self.init_left_pad[1]) - pad_success_margin
-        )
-
-        right_caging = reward_utils_cpp.tolerance(
-            delta_object_y_right_pad,
-            bounds=(obj_radius, pad_success_margin),
-            margin=right_caging_margin,
-            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-        )
-        left_caging = reward_utils_cpp.tolerance(
-            delta_object_y_left_pad,
-            bounds=(obj_radius, pad_success_margin),
-            margin=left_caging_margin,
-            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-        )
-
-        y_caging = reward_utils_cpp.hamacher_product(left_caging, right_caging)
-
-        # compute the tcp_obj distance in the x_z plane
-        tcp_xz = tcp + np.array([0.0, -tcp[1], 0.0])
-        obj_position_x_z = np.copy(obj_pos) + np.array([0.0, -obj_pos[1], 0.0])
-        tcp_obj_norm_x_z = float(np.linalg.norm(tcp_xz - obj_position_x_z, ord=2))
-
-        # used for computing the tcp to object object margin in the x_z plane
-        assert self.obj_init_pos is not None
-        init_obj_x_z = self.obj_init_pos + np.array([0.0, -self.obj_init_pos[1], 0.0])
-        init_tcp_x_z = self.init_tcp + np.array([0.0, -self.init_tcp[1], 0.0])
-        tcp_obj_x_z_margin = (
-            np.linalg.norm(init_obj_x_z - init_tcp_x_z, ord=2) - x_z_success_margin
-        )
-
-        x_z_caging = reward_utils_cpp.tolerance(
-            tcp_obj_norm_x_z,
-            bounds=(0, x_z_success_margin),
-            margin=tcp_obj_x_z_margin,
-            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-        )
-
-        gripper_closed = min(max(0, action[-1]), 1)
-        caging = reward_utils_cpp.hamacher_product(y_caging, x_z_caging)
-
-        gripping = gripper_closed if caging > 0.97 else 0.0
-        caging_and_gripping = reward_utils_cpp.hamacher_product(caging, gripping)
-        caging_and_gripping = (caging_and_gripping + caging) / 2
-        return caging_and_gripping
-
     def compute_reward(
         self, action: npt.NDArray[Any], obs: npt.NDArray[np.float64]
     ) -> tuple[float, float, float, float, float, float]:
         assert self._target_pos is not None and self.obj_init_pos is not None
-        if self.reward_function_version == 'v2':
+        if self.reward_function_version == "v2":
             _TARGET_RADIUS: float = 0.05
             tcp = self.tcp_center
             obj = obs[4:7]
@@ -266,7 +197,16 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
                 sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
 
-            object_grasped = self._gripper_caging_reward(action, obj)
+            object_grasped = self._gripper_caging_reward(
+                action,
+                obj,
+                obj_radius=0.015,
+                pad_success_thresh=0.05,
+                xz_thresh=0.005,
+                use_abs_pad_to_obj_lr=False,
+                base_caging_thresh_on_obj_init_pos=False,
+                high_density=True,
+            )
             in_place_and_object_grasped = reward_utils_cpp.hamacher_product(
                 object_grasped, in_place
             )
@@ -280,13 +220,21 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
                 reward += 1.0 + 5.0 * in_place
             if obj_to_target < _TARGET_RADIUS:
                 reward = 10.0
-            return (reward, tcp_to_obj, tcp_opened, obj_to_target, object_grasped, in_place)
-        elif self.reward_function_version == 'v1':
+            return (
+                reward,
+                tcp_to_obj,
+                tcp_opened,
+                obj_to_target,
+                object_grasped,
+                in_place,
+            )
+        elif self.reward_function_version == "v1":
             objPos = obs[4:7]
 
-            rightFinger, leftFinger = self._get_site_pos(
-                "rightEndEffector"
-            ), self._get_site_pos("leftEndEffector")
+            rightFinger, leftFinger = (
+                self._get_site_pos("rightEndEffector"),
+                self._get_site_pos("leftEndEffector"),
+            )
             fingerCOM = (rightFinger + leftFinger) / 2
 
             heightTarget = self.heightTarget
@@ -316,9 +264,9 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
                 self.pickCompleted = False
 
             objDropped = (
-                    (objPos[2] < (self.objHeight + 0.005))
-                    and (placingDist > 0.02)
-                    and (reachDist > 0.02)
+                (objPos[2] < (self.objHeight + 0.005))
+                and (placingDist > 0.02)
+                and (reachDist > 0.02)
             )
             # Object on the ground, far away from the goal, and from the gripper
             # Can tweak the margin limits
@@ -335,15 +283,15 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
             c2 = 0.01
             c3 = 0.001
             objDropped = (
-                    (objPos[2] < (self.objHeight + 0.005))
-                    and (placingDist > 0.02)
-                    and (reachDist > 0.02)
+                (objPos[2] < (self.objHeight + 0.005))
+                and (placingDist > 0.02)
+                and (reachDist > 0.02)
             )
 
             cond = self.pickCompleted and (reachDist < 0.1) and not (objDropped)
             if cond:
                 placeRew = 1000 * (self.maxPlacingDist - placingDist) + c1 * (
-                        np.exp(-(placingDist ** 2) / c2) + np.exp(-(placingDist ** 2) / c3)
+                    np.exp(-(placingDist**2) / c2) + np.exp(-(placingDist**2) / c3)
                 )
                 placeRew = max(placeRew, 0)
             else:
@@ -352,4 +300,4 @@ class SawyerPickPlaceEnvV3(SawyerXYZEnv):
             assert (placeRew >= 0) and (pickRew >= 0)
             reward = reachRew + pickRew + placeRew
 
-            return reward, 0., 0., placingDist, 0., 0.
+            return reward, 0.0, 0.0, placingDist, 0.0, 0.0

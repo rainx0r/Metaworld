@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pickle import OBJ
 from typing import Any
 
 import numpy as np
@@ -10,7 +11,6 @@ from scipy.spatial.transform import Rotation
 from metaworld.asset_path_utils import full_V3_path_for
 from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv
 from metaworld.types import InitConfigDict
-
 import metaworld_cpp.reward_utils as reward_utils_cpp
 
 
@@ -23,7 +23,7 @@ class SawyerPushBackEnvV3(SawyerXYZEnv):
         render_mode: RenderMode | None = None,
         camera_name: str | None = None,
         camera_id: int | None = None,
-        reward_function_version: str = "v2"
+        reward_function_version: str = "v2",
     ) -> None:
         goal_low = (-0.1, 0.6, 0.0199)
         goal_high = (0.1, 0.7, 0.0201)
@@ -134,112 +134,18 @@ class SawyerPushBackEnvV3(SawyerXYZEnv):
         self.model.site("goal").pos = self._target_pos
         return self._get_obs()
 
-    def _gripper_caging_reward(
-        self,
-        action: npt.NDArray[np.float32],
-        obj_pos: npt.NDArray[Any],
-        obj_radius: float,
-        pad_success_thresh: float = 0,  # All of these args are unused
-        object_reach_radius: float = 0,  # just here to match the parent's type signature
-        xz_thresh: float = 0,
-        desired_gripper_effort: float = 1.0,
-        high_density: bool = False,
-        medium_density: bool = False,
-    ) -> float:
-        pad_success_margin = 0.05
-        grip_success_margin = obj_radius + 0.003
-        x_z_success_margin = 0.01
-
-        tcp = self.tcp_center
-        left_pad = self.get_body_com("leftpad")
-        right_pad = self.get_body_com("rightpad")
-        delta_object_y_left_pad = left_pad[1] - obj_pos[1]
-        delta_object_y_right_pad = obj_pos[1] - right_pad[1]
-        right_caging_margin = abs(
-            abs(obj_pos[1] - self.init_right_pad[1]) - pad_success_margin
-        )
-        left_caging_margin = abs(
-            abs(obj_pos[1] - self.init_left_pad[1]) - pad_success_margin
-        )
-
-        right_caging = reward_utils_cpp.tolerance(
-            delta_object_y_right_pad,
-            bounds=(obj_radius, pad_success_margin),
-            margin=right_caging_margin,
-            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-        )
-        left_caging = reward_utils_cpp.tolerance(
-            delta_object_y_left_pad,
-            bounds=(obj_radius, pad_success_margin),
-            margin=left_caging_margin,
-            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-        )
-
-        right_gripping = reward_utils_cpp.tolerance(
-            delta_object_y_right_pad,
-            bounds=(obj_radius, grip_success_margin),
-            margin=right_caging_margin,
-            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-        )
-        left_gripping = reward_utils_cpp.tolerance(
-            delta_object_y_left_pad,
-            bounds=(obj_radius, grip_success_margin),
-            margin=left_caging_margin,
-            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-        )
-
-        assert right_caging >= 0 and right_caging <= 1
-        assert left_caging >= 0 and left_caging <= 1
-
-        y_caging = reward_utils_cpp.hamacher_product(right_caging, left_caging)
-        y_gripping = reward_utils_cpp.hamacher_product(right_gripping, left_gripping)
-
-        assert y_caging >= 0 and y_caging <= 1
-
-        tcp_xz = tcp + np.array([0.0, -tcp[1], 0.0])
-        obj_position_x_z = np.copy(obj_pos) + np.array([0.0, -obj_pos[1], 0.0])
-        tcp_obj_norm_x_z = np.linalg.norm(tcp_xz - obj_position_x_z, ord=2)
-        assert self.obj_init_pos is not None
-        init_obj_x_z = self.obj_init_pos + np.array([0.0, -self.obj_init_pos[1], 0.0])
-        init_tcp_x_z = self.init_tcp + np.array([0.0, -self.init_tcp[1], 0.0])
-
-        tcp_obj_x_z_margin = (
-            np.linalg.norm(init_obj_x_z - init_tcp_x_z, ord=2) - x_z_success_margin
-        )
-        x_z_caging = reward_utils_cpp.tolerance(
-            float(tcp_obj_norm_x_z),
-            bounds=(0, x_z_success_margin),
-            margin=tcp_obj_x_z_margin,
-            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-        )
-
-        assert right_caging >= 0 and right_caging <= 1
-        gripper_closed = min(max(0, action[-1]), 1)
-        assert gripper_closed >= 0 and gripper_closed <= 1
-        caging = reward_utils_cpp.hamacher_product(y_caging, x_z_caging)
-        assert caging >= 0 and caging <= 1
-
-        if caging > 0.95:
-            gripping = y_gripping
-        else:
-            gripping = 0.0
-        assert gripping >= 0 and gripping <= 1
-
-        caging_and_gripping = (caging + gripping) / 2
-        assert caging_and_gripping >= 0 and caging_and_gripping <= 1
-
-        return caging_and_gripping
-
     def compute_reward(
         self, action: npt.NDArray[Any], obs: npt.NDArray[np.float64]
     ) -> tuple[float, float, float, float, float, float]:
         assert self._target_pos is not None and self.obj_init_pos is not None
-        if self.reward_function_version == 'v2':
+        if self.reward_function_version == "v2":
             obj = obs[4:7]
             tcp_opened = obs[3]
             tcp_to_obj = float(np.linalg.norm(obj - self.tcp_center))
             target_to_obj = float(np.linalg.norm(obj - self._target_pos))
-            target_to_obj_init = float(np.linalg.norm(self.obj_init_pos - self._target_pos))
+            target_to_obj_init = float(
+                np.linalg.norm(self.obj_init_pos - self._target_pos)
+            )
 
             in_place = reward_utils_cpp.tolerance(
                 target_to_obj,
@@ -247,7 +153,18 @@ class SawyerPushBackEnvV3(SawyerXYZEnv):
                 margin=target_to_obj_init,
                 sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
-            object_grasped = self._gripper_caging_reward(action, obj, self.OBJ_RADIUS)
+            object_grasped = self._gripper_caging_reward(
+                action,
+                obj,
+                obj_radius=self.OBJ_RADIUS,
+                pad_success_thresh=0.05,
+                grip_success_thresh=self.OBJ_RADIUS + 0.003,
+                compute_gripping_separately=True,
+                use_abs_pad_to_obj_lr=False,
+                base_caging_thresh_on_obj_init_pos=False,
+                xz_thresh=0.01,
+                caging_thresh=0.95,
+            )
 
             reward = reward_utils_cpp.hamacher_product(object_grasped, in_place)
 
@@ -259,4 +176,11 @@ class SawyerPushBackEnvV3(SawyerXYZEnv):
                 reward += 1.0 + 5.0 * in_place
             if target_to_obj < self.TARGET_RADIUS:
                 reward = 10.0
-            return (reward, tcp_to_obj, tcp_opened, target_to_obj, object_grasped, in_place)
+            return (
+                reward,
+                tcp_to_obj,
+                tcp_opened,
+                target_to_obj,
+                object_grasped,
+                in_place,
+            )

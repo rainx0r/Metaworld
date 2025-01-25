@@ -719,9 +719,15 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         obj_pos: npt.NDArray[Any],
         obj_radius: float,
         pad_success_thresh: float,
-        object_reach_radius: float,
         xz_thresh: float,
+        object_reach_radius: float = 0.01,
         desired_gripper_effort: float = 1.0,
+        caging_thresh: float = 0.97,
+        obj_init_pos: npt.NDArray[np.float64] | None = None,
+        compute_gripping_separately: bool = False,
+        base_caging_thresh_on_obj_init_pos: bool = True,
+        grip_success_thresh: float | None = None,
+        use_abs_pad_to_obj_lr: bool = True,
         high_density: bool = False,
         medium_density: bool = False,
     ) -> float:
@@ -740,14 +746,26 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
                 object. Y axis not included since the caging function handles
                     successful grasping in the Y axis.
             desired_gripper_effort(float): desired gripper effort, defaults to 1.0.
+            caging_thresh(float): threshold for caging to give gripping reward, defaults to 0.97.
+            obj_init_pos(np.ndarray): (3,) array representing the initial object position. Only needed
+                if the object the arm must interact with is not the same as `self.obj_init_pos`.
+            compute_gripping_separately(bool): whether to compute gripping reward separately from the caging reward.
+                Only needed for some reward functions.
+            base_caging_thresh_on_obj_init_pos(bool): whether to use the base caging threshold on the initial object position (vs the initial pad position).
+            use_abs_pad_to_obj_lr(bool): whether to use absolute pad-to-object distances in the caging reward.
+            grip_success_thresh(float): threshold for gripping to give gripping reward, only needed if `compute_gripping_separately` is True.
             high_density(bool): flag for high-density. Cannot be used with medium-density.
             medium_density(bool): flag for medium-density. Cannot be used with high-density.
 
         Returns:
             the reward value
         """
+        if obj_init_pos is None:
+            # HACK: For stick-push, as we want the robot to grasp the stick
+            obj_init_pos = self.obj_init_pos
+
         assert (
-            self.obj_init_pos is not None
+            obj_init_pos is not None
         ), "`obj_init_pos` must be initialized before calling this function."
 
         if high_density and medium_density:
@@ -758,10 +776,12 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
 
         # get current positions of left and right pads (Y axis)
         pad_y_lr = np.hstack((left_pad[1], right_pad[1]))
-        # compare *current* pad positions with *current* obj position (Y axis)
-        pad_to_obj_lr = np.abs(pad_y_lr - obj_pos[1])
-        # compare *current* pad positions with *initial* obj position (Y axis)
-        pad_to_objinit_lr = np.abs(pad_y_lr - self.obj_init_pos[1])
+        if use_abs_pad_to_obj_lr:
+            # compare *current* pad positions with *current* obj position (Y axis)
+            pad_to_obj_lr = np.abs(pad_y_lr - obj_pos[1])
+        else:
+            # HACK: For socccer / pick-place / push-back / sweep / sweep-into
+            pad_to_obj_lr = np.hstack((left_pad[1] - obj_pos[1], obj_pos[1] - right_pad[1]))
 
         # Compute the left/right caging rewards. This is crucial for success,
         # yet counterintuitive mathematically because we invented it
@@ -793,7 +813,14 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         # penalizes the agent if it moves *back* toward `obj_init_pos`, but
         # offers no encouragement for leaving that position in the first place.
         # That part is left to the reward functions of individual environments.
-        caging_lr_margin = np.abs(pad_to_objinit_lr - pad_success_thresh)
+        if base_caging_thresh_on_obj_init_pos:
+            pad_to_objinit_lr = np.abs(pad_y_lr - obj_init_pos[1])
+            caging_lr_margin = np.abs(pad_to_objinit_lr - pad_success_thresh)
+        else:
+            # HACK: For socccer / pick-place / push-back / sweep / sweep-into
+            init_pad_y_lr = np.hstack((self.init_left_pad[1], self.init_right_pad[1]))
+            init_pad_to_obj_lr = np.abs(init_pad_y_lr - obj_pos[1])
+            caging_lr_margin = np.abs(init_pad_to_obj_lr - pad_success_thresh)
         caging_lr = [
             reward_utils_cpp.tolerance(
                 pad_to_obj_lr[i],  # "x" in the description above
@@ -805,6 +832,22 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         ]
         caging_y = reward_utils_cpp.hamacher_product(*caging_lr)
 
+        gripping_y = None
+        if compute_gripping_separately:
+            # HACK: For socccer / push-back / sweep / sweep-into
+            assert grip_success_thresh is not None, "`grip_success_thresh` must be provided"
+
+            gripping_lr = [
+                reward_utils_cpp.tolerance(
+                    pad_to_obj_lr[i],  # "x" in the description above
+                    bounds=(obj_radius, grip_success_thresh),
+                    margin=caging_lr_margin[i],  # "margin" in the description above
+                    sigmoid=reward_utils_cpp.SigmoidType.LongTail,
+                )
+                for i in range(2)
+            ]
+            gripping_y = reward_utils_cpp.hamacher_product(*gripping_lr)
+
         # MARK: X-Z gripper information for caging reward-----------------------
         tcp = self.tcp_center
         xz = [0, 2]
@@ -813,7 +856,7 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         # constant (something in the 0.3 to 0.5 range) and x shrinks as the
         # gripper moves towards the object. After picking up the object, the
         # reward is maximized and changes very little
-        caging_xz_margin = np.linalg.norm(self.obj_init_pos[xz] - self.init_tcp[xz])
+        caging_xz_margin = np.linalg.norm(obj_init_pos[xz] - self.init_tcp[xz])
         caging_xz_margin -= xz_thresh
         caging_xz = reward_utils_cpp.tolerance(
             np.linalg.norm(tcp[xz] - obj_pos[xz]),  # "x" in the description above
@@ -823,21 +866,27 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         )
 
         # MARK: Closed-extent gripper information for caging reward-------------
-        gripper_closed = (
-            min(max(0, action[-1]), desired_gripper_effort) / desired_gripper_effort
-        )
 
         # MARK: Combine components----------------------------------------------
-        caging = reward_utils_cpp.hamacher_product(caging_y, float(caging_xz))
-        gripping = gripper_closed if caging > 0.97 else 0.0
-        caging_and_gripping = reward_utils_cpp.hamacher_product(caging, gripping)
+        caging = reward_utils_cpp.hamacher_product(caging_y, caging_xz)
+
+        if compute_gripping_separately:
+            # HACK: For socccer / push-back / sweep / sweep-into
+            assert gripping_y is not None
+            gripping = gripping_y if caging > caging_thresh else 0.0
+            caging_and_gripping = (caging + gripping) / 2
+        else:
+            gripper_closed = (
+                min(max(0, action[-1]), desired_gripper_effort) / desired_gripper_effort
+            )
+            gripping = gripper_closed if caging > caging_thresh else 0.0
+            caging_and_gripping = reward_utils_cpp.hamacher_product(caging, gripping)
 
         if high_density:
             caging_and_gripping = (caging_and_gripping + caging) / 2
         if medium_density:
-            tcp = self.tcp_center
             tcp_to_obj = np.linalg.norm(obj_pos - tcp)
-            tcp_to_obj_init = np.linalg.norm(self.obj_init_pos - self.init_tcp)
+            tcp_to_obj_init = np.linalg.norm(obj_init_pos - self.init_tcp)
             # Compute reach reward
             # - We subtract `object_reach_radius` from the margin so that the
             #   reward always starts with a value of 0.1
@@ -848,6 +897,6 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
                 margin=reach_margin,
                 sigmoid=reward_utils_cpp.SigmoidType.LongTail,
             )
-            caging_and_gripping = (caging_and_gripping + float(reach)) / 2
+            caging_and_gripping = (caging_and_gripping + reach) / 2
 
         return caging_and_gripping
