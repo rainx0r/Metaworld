@@ -9,7 +9,12 @@ from setuptools import setup
 ext_modules = [
     Pybind11Extension(
         "metaworld_cpp",
-        ["metaworld_cpp/bindings.cpp"],
+        [
+            "metaworld_cpp/bindings.cpp",
+            "metaworld_cpp/mujoco_utils.cpp",
+            "metaworld_cpp/reward_utils.cpp",
+            "metaworld_cpp/rewards.cpp",
+        ],
         include_dirs=[pathlib.Path(mujoco.HEADERS_DIR).parent],
     ),
 ]

@@ -1,6 +1,7 @@
 
 import mujoco._structs
 from . import reward_utils as reward_utils
+from . import rewards as rewards
 
 def touching_object(model: mujoco._structs.MjModel, data: mujoco._structs.MjData, object_geom_id: int) -> bool:
     """Determines whether the gripper is touching the object with given id.

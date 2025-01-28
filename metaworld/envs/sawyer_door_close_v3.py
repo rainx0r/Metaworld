@@ -62,7 +62,7 @@ class SawyerDoorCloseEnvV3(SawyerXYZEnv):
         return full_V3_path_for("sawyer_xyz/sawyer_door_pull.xml")
 
     def _get_pos_objects(self) -> npt.NDArray[Any]:
-        return self.data.geom("handle").xpos.copy()
+        return self.data.geom("handle").xpos
 
     def _get_quat_objects(self) -> npt.NDArray[Any]:
         return Rotation.from_matrix(

@@ -87,7 +87,7 @@ class SawyerHammerEnvV3(SawyerXYZEnv):
 
     def _get_pos_objects(self) -> npt.NDArray[Any]:
         return np.hstack(
-            (self.get_body_com("hammer").copy(), self.get_body_com("nail_link").copy())
+            (self.get_body_com("hammer"), self.get_body_com("nail_link"))
         )
 
     def _get_quat_objects(self) -> npt.NDArray[Any]:
@@ -108,7 +108,7 @@ class SawyerHammerEnvV3(SawyerXYZEnv):
         # Set position of box & nail (these are not randomized)
         self.model.body("box").pos = np.array([0.24, 0.85, 0.0])
         # Update _target_pos
-        self._target_pos = self._get_site_pos("goal")
+        self._target_pos = self._get_site_pos("goal").copy()
 
         # Randomize hammer position
         self.hammer_init_pos = self._get_state_rand_vec()

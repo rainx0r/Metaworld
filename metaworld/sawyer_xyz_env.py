@@ -17,11 +17,10 @@ from gymnasium.utils import seeding
 from gymnasium.utils.ezpickle import EzPickle
 from typing_extensions import TypeAlias
 
-from metaworld.types import XYZ, EnvironmentStateDict, ObservationDict, Task
-
-
-from metaworld_cpp import touching_object
 import metaworld_cpp.reward_utils as reward_utils_cpp
+import metaworld_cpp.rewards as rewards_cpp
+from metaworld.types import XYZ, EnvironmentStateDict, ObservationDict, Task
+from metaworld_cpp import touching_object
 
 RenderMode: TypeAlias = "Literal['human', 'rgb_array', 'depth_array']"
 
@@ -362,7 +361,7 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         Returns:
             Flat, 3 element array indicating site's location.
         """
-        return self.data.site(site_name).xpos.copy()
+        return self.data.site(site_name).xpos
 
     def _set_pos_site(self, name: str, pos: npt.NDArray[Any]) -> None:
         """Sets the position of a given site.
@@ -390,47 +389,6 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
             Whether the gripper is touching the object
         """
         return touching_object(self.model, self.data, self._get_id_main_object())
-
-    # def touching_object(self, object_geom_id: int) -> bool:
-    #     """Determines whether the gripper is touching the object with given id.
-    #
-    #     Args:
-    #         object_geom_id: the ID of the object in question
-    #
-    #     Returns:
-    #         Whether the gripper is touching the object
-    #     """
-    #
-    #     leftpad_geom_id = self.data.geom("leftpad_geom").id
-    #     rightpad_geom_id = self.data.geom("rightpad_geom").id
-    #
-    #     leftpad_object_contacts = [
-    #         x
-    #         for x in self.data.contact
-    #         if (
-    #             leftpad_geom_id in (x.geom1, x.geom2)
-    #             and object_geom_id in (x.geom1, x.geom2)
-    #         )
-    #     ]
-    #
-    #     rightpad_object_contacts = [
-    #         x
-    #         for x in self.data.contact
-    #         if (
-    #             rightpad_geom_id in (x.geom1, x.geom2)
-    #             and object_geom_id in (x.geom1, x.geom2)
-    #         )
-    #     ]
-    #
-    #     leftpad_object_contact_force = sum(
-    #         self.data.efc_force[x.efc_address] for x in leftpad_object_contacts
-    #     )
-    #
-    #     rightpad_object_contact_force = sum(
-    #         self.data.efc_force[x.efc_address] for x in rightpad_object_contacts
-    #     )
-    #
-    #     return 0 < leftpad_object_contact_force and 0 < rightpad_object_contact_force
 
     def _get_id_main_object(self) -> int:
         return self.data.geom("objGeom").id
@@ -700,7 +658,7 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
                 self._random_reset_space.low,
                 self._random_reset_space.high,
                 size=self._random_reset_space.low.size,
-            )
+            ).astype(np.float64)
             self._last_rand_vec = rand_vec
             return rand_vec
         else:
@@ -715,8 +673,8 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
 
     def _gripper_caging_reward(
         self,
-        action: npt.NDArray[np.float32],
-        obj_pos: npt.NDArray[Any],
+        action: npt.NDArray[np.floating[Any]],
+        obj_pos: npt.NDArray[np.float64],
         obj_radius: float,
         pad_success_thresh: float,
         xz_thresh: float,
@@ -731,172 +689,37 @@ class SawyerXYZEnv(SawyerMocapBase, EzPickle):
         high_density: bool = False,
         medium_density: bool = False,
     ) -> float:
-        """Reward for agent grasping obj.
-
-        Args:
-            action(np.ndarray): (4,) array representing the action
-                delta(x), delta(y), delta(z), gripper_effort
-            obj_pos(np.ndarray): (3,) array representing the obj x,y,z
-            obj_radius(float):radius of object's bounding sphere
-            pad_success_thresh(float): successful distance of gripper_pad
-                to object
-            object_reach_radius(float): successful distance of gripper center
-                to the object.
-            xz_thresh(float): successful distance of gripper in x_z axis to the
-                object. Y axis not included since the caging function handles
-                    successful grasping in the Y axis.
-            desired_gripper_effort(float): desired gripper effort, defaults to 1.0.
-            caging_thresh(float): threshold for caging to give gripping reward, defaults to 0.97.
-            obj_init_pos(np.ndarray): (3,) array representing the initial object position. Only needed
-                if the object the arm must interact with is not the same as `self.obj_init_pos`.
-            compute_gripping_separately(bool): whether to compute gripping reward separately from the caging reward.
-                Only needed for some reward functions.
-            base_caging_thresh_on_obj_init_pos(bool): whether to use the base caging threshold on the initial object position (vs the initial pad position).
-            use_abs_pad_to_obj_lr(bool): whether to use absolute pad-to-object distances in the caging reward.
-            grip_success_thresh(float): threshold for gripping to give gripping reward, only needed if `compute_gripping_separately` is True.
-            high_density(bool): flag for high-density. Cannot be used with medium-density.
-            medium_density(bool): flag for medium-density. Cannot be used with high-density.
-
-        Returns:
-            the reward value
-        """
         if obj_init_pos is None:
             # HACK: For stick-push, as we want the robot to grasp the stick
             obj_init_pos = self.obj_init_pos
 
+        if grip_success_thresh is None:
+            # TODO: find a way to make this actually optional in C++
+            grip_success_thresh = 0.025
+
         assert (
             obj_init_pos is not None
         ), "`obj_init_pos` must be initialized before calling this function."
-
-        if high_density and medium_density:
-            raise ValueError("Can only be either high_density or medium_density")
-        # MARK: Left-right gripper information for caging reward----------------
-        left_pad = self.get_body_com("leftpad")
-        right_pad = self.get_body_com("rightpad")
-
-        # get current positions of left and right pads (Y axis)
-        pad_y_lr = np.hstack((left_pad[1], right_pad[1]))
-        if use_abs_pad_to_obj_lr:
-            # compare *current* pad positions with *current* obj position (Y axis)
-            pad_to_obj_lr = np.abs(pad_y_lr - obj_pos[1])
-        else:
-            # HACK: For socccer / pick-place / push-back / sweep / sweep-into
-            pad_to_obj_lr = np.hstack((left_pad[1] - obj_pos[1], obj_pos[1] - right_pad[1]))
-
-        # Compute the left/right caging rewards. This is crucial for success,
-        # yet counterintuitive mathematically because we invented it
-        # accidentally.
-        #
-        # Before touching the object, `pad_to_obj_lr` ("x") is always separated
-        # from `caging_lr_margin` ("the margin") by some small number,
-        # `pad_success_thresh`.
-        #
-        # When far away from the object:
-        #       x = margin + pad_success_thresh
-        #       --> Thus x is outside the margin, yielding very small reward.
-        #           Here, any variation in the reward is due to the fact that
-        #           the margin itself is shifting.
-        # When near the object (within pad_success_thresh):
-        #       x = pad_success_thresh - margin
-        #       --> Thus x is well within the margin. As long as x > obj_radius,
-        #           it will also be within the bounds, yielding maximum reward.
-        #           Here, any variation in the reward is due to the gripper
-        #           moving *too close* to the object (i.e, blowing past the
-        #           obj_radius bound).
-        #
-        # Therefore, before touching the object, this is very nearly a binary
-        # reward -- if the gripper is between obj_radius and pad_success_thresh,
-        # it gets maximum reward. Otherwise, the reward very quickly falls off.
-        #
-        # After grasping the object and moving it away from initial position,
-        # x remains (mostly) constant while the margin grows considerably. This
-        # penalizes the agent if it moves *back* toward `obj_init_pos`, but
-        # offers no encouragement for leaving that position in the first place.
-        # That part is left to the reward functions of individual environments.
-        if base_caging_thresh_on_obj_init_pos:
-            pad_to_objinit_lr = np.abs(pad_y_lr - obj_init_pos[1])
-            caging_lr_margin = np.abs(pad_to_objinit_lr - pad_success_thresh)
-        else:
-            # HACK: For socccer / pick-place / push-back / sweep / sweep-into
-            init_pad_y_lr = np.hstack((self.init_left_pad[1], self.init_right_pad[1]))
-            init_pad_to_obj_lr = np.abs(init_pad_y_lr - obj_pos[1])
-            caging_lr_margin = np.abs(init_pad_to_obj_lr - pad_success_thresh)
-        caging_lr = [
-            reward_utils_cpp.tolerance(
-                pad_to_obj_lr[i],  # "x" in the description above
-                bounds=(obj_radius, pad_success_thresh),
-                margin=caging_lr_margin[i],  # "margin" in the description above
-                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-            )
-            for i in range(2)
-        ]
-        caging_y = reward_utils_cpp.hamacher_product(*caging_lr)
-
-        gripping_y = None
-        if compute_gripping_separately:
-            # HACK: For socccer / push-back / sweep / sweep-into
-            assert grip_success_thresh is not None, "`grip_success_thresh` must be provided"
-
-            gripping_lr = [
-                reward_utils_cpp.tolerance(
-                    pad_to_obj_lr[i],  # "x" in the description above
-                    bounds=(obj_radius, grip_success_thresh),
-                    margin=caging_lr_margin[i],  # "margin" in the description above
-                    sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-                )
-                for i in range(2)
-            ]
-            gripping_y = reward_utils_cpp.hamacher_product(*gripping_lr)
-
-        # MARK: X-Z gripper information for caging reward-----------------------
-        tcp = self.tcp_center
-        xz = [0, 2]
-
-        # Compared to the caging_y reward, caging_xz is simple. The margin is
-        # constant (something in the 0.3 to 0.5 range) and x shrinks as the
-        # gripper moves towards the object. After picking up the object, the
-        # reward is maximized and changes very little
-        caging_xz_margin = np.linalg.norm(obj_init_pos[xz] - self.init_tcp[xz])
-        caging_xz_margin -= xz_thresh
-        caging_xz = reward_utils_cpp.tolerance(
-            np.linalg.norm(tcp[xz] - obj_pos[xz]),  # "x" in the description above
-            bounds=(0, xz_thresh),
-            margin=caging_xz_margin,  # "margin" in the description above
-            sigmoid=reward_utils_cpp.SigmoidType.LongTail,
+        return rewards_cpp.gripper_caging_reward(
+            action=action,
+            obj_pos=obj_pos,
+            obj_init_pos=obj_init_pos,
+            left_pad=self.get_body_com("leftpad"),
+            right_pad=self.get_body_com("rightpad"),
+            tcp=self.tcp_center,
+            init_tcp=self.init_tcp,
+            init_left_pad=self.init_left_pad,
+            init_right_pad=self.init_right_pad,
+            obj_radius=obj_radius,
+            pad_success_thresh=pad_success_thresh,
+            xz_thresh=xz_thresh,
+            object_reach_radius=object_reach_radius,
+            desired_gripper_effort=desired_gripper_effort,
+            caging_thresh=caging_thresh,
+            compute_gripping_separately=compute_gripping_separately,
+            base_caging_thresh_on_obj_init_pos=base_caging_thresh_on_obj_init_pos,
+            grip_success_thresh=grip_success_thresh,
+            use_abs_pad_to_obj_lr=use_abs_pad_to_obj_lr,
+            high_density=high_density,
+            medium_density=medium_density,
         )
-
-        # MARK: Closed-extent gripper information for caging reward-------------
-
-        # MARK: Combine components----------------------------------------------
-        caging = reward_utils_cpp.hamacher_product(caging_y, caging_xz)
-
-        if compute_gripping_separately:
-            # HACK: For socccer / push-back / sweep / sweep-into
-            assert gripping_y is not None
-            gripping = gripping_y if caging > caging_thresh else 0.0
-            caging_and_gripping = (caging + gripping) / 2
-        else:
-            gripper_closed = (
-                min(max(0, action[-1]), desired_gripper_effort) / desired_gripper_effort
-            )
-            gripping = gripper_closed if caging > caging_thresh else 0.0
-            caging_and_gripping = reward_utils_cpp.hamacher_product(caging, gripping)
-
-        if high_density:
-            caging_and_gripping = (caging_and_gripping + caging) / 2
-        if medium_density:
-            tcp_to_obj = np.linalg.norm(obj_pos - tcp)
-            tcp_to_obj_init = np.linalg.norm(obj_init_pos - self.init_tcp)
-            # Compute reach reward
-            # - We subtract `object_reach_radius` from the margin so that the
-            #   reward always starts with a value of 0.1
-            reach_margin = abs(tcp_to_obj_init - object_reach_radius)
-            reach = reward_utils_cpp.tolerance(
-                tcp_to_obj,
-                bounds=(0, object_reach_radius),
-                margin=reach_margin,
-                sigmoid=reward_utils_cpp.SigmoidType.LongTail,
-            )
-            caging_and_gripping = (caging_and_gripping + reach) / 2
-
-        return caging_and_gripping

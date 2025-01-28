@@ -120,8 +120,8 @@ class SawyerHandlePressSideEnvV3(SawyerXYZEnv):
 
         self.model.body("box").pos = self.obj_init_pos
         self._set_obj_xyz(np.array(-0.001))
-        self._target_pos = self._get_site_pos("goalPress")
-        self._handle_init_pos = self._get_pos_objects()
+        self._target_pos = self._get_site_pos("goalPress").copy()
+        self._handle_init_pos = self._get_pos_objects().copy()
 
         return self._get_obs()
 

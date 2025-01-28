@@ -137,7 +137,7 @@ class SawyerPegInsertionSideEnvV3(SawyerXYZEnv):
         while np.linalg.norm(pos_peg[:2] - pos_box[:2]) < 0.1:
             pos_peg, pos_box = np.split(self._get_state_rand_vec(), 2)
         self.obj_init_pos = pos_peg
-        self.peg_head_pos_init = self._get_site_pos("pegHead")
+        self.peg_head_pos_init = self._get_site_pos("pegHead").copy()
         self._set_obj_xyz(self.obj_init_pos)
         self.model.body("box").pos = pos_box
         self._target_pos = pos_box + np.array([0.03, 0.0, 0.13])

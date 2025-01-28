@@ -38,6 +38,7 @@ double hamacher_product(double a, double b) {
   return h_prod;
 }
 
+// TODO: the double* here might wanna be vec3 eventually
 double rect_prism_tolerance(const double *curr, const double *zero,
                             const double *one) {
   bool in_prism = in_range(curr[0], zero[0], one[0]) &&

@@ -108,7 +108,7 @@ class SawyerHandlePullEnvV3(SawyerXYZEnv):
         self.obj_init_pos = self._get_state_rand_vec()
         self.model.body("box").pos = self.obj_init_pos
         self._set_obj_xyz(np.array(-0.1))
-        self._target_pos = self._get_site_pos("goalPull")
+        self._target_pos = self._get_site_pos("goalPull").copy()
 
         return self._get_obs()
 

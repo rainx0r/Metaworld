@@ -110,7 +110,7 @@ class SawyerButtonPressTopdownWallEnvV3(SawyerXYZEnv):
         self.model.body("box").pos = self.obj_init_pos
         mujoco.mj_forward(self.model, self.data)
 
-        self._target_pos = self._get_site_pos("hole")
+        self._target_pos = self._get_site_pos("hole").copy()
         self._obj_to_target_init = abs(
             self._target_pos[2] - self._get_site_pos("buttonStart")[2]
         )

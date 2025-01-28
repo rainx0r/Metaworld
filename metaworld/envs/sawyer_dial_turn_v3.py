@@ -83,7 +83,7 @@ class SawyerDialTurnEnvV3(SawyerXYZEnv):
         return reward, info
 
     def _get_pos_objects(self) -> npt.NDArray[Any]:
-        dial_center = self.get_body_com("dial").copy()
+        dial_center = self.get_body_com("dial")
         dial_angle_rad = self.data.joint("knob_Joint_1").qpos
 
         offset = np.array(

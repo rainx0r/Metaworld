@@ -105,7 +105,7 @@ class SawyerPegUnplugSideEnvV3(SawyerXYZEnv):
         self.model.body("box").pos = pos_box
         pos_plug = pos_box + np.array([0.044, 0.0, 0.131])
         self._set_obj_xyz(pos_plug)
-        self.obj_init_pos = self._get_site_pos("pegEnd")
+        self.obj_init_pos = self._get_site_pos("pegEnd").copy()
 
         self._target_pos = pos_plug + np.array([0.15, 0.0, 0.0])
         self.model.site("goal").pos = self._target_pos

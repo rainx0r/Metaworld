@@ -106,12 +106,12 @@ class SawyerHandlePressEnvV3(SawyerXYZEnv):
         self.obj_init_pos = self._get_state_rand_vec()
         self.model.body("box").pos = self.obj_init_pos
         self._set_obj_xyz(np.array(-0.001))
-        self._target_pos = self._get_site_pos("goalPress")
+        self._target_pos = self._get_site_pos("goalPress").copy()
         self.maxDist = np.abs(
             self.data.site("handleStart").xpos[-1] - self._target_pos[-1]
         )
         self.target_reward = 1000 * self.maxDist + 1000 * 2
-        self._handle_init_pos = self._get_pos_objects()
+        self._handle_init_pos = self._get_pos_objects().copy()
 
         return self._get_obs()
 

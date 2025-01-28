@@ -92,7 +92,7 @@ class SawyerDoorEnvV3(SawyerXYZEnv):
         return []
 
     def _get_pos_objects(self) -> npt.NDArray[Any]:
-        return self.data.geom("handle").xpos.copy()
+        return self.data.geom("handle").xpos
 
     def _get_quat_objects(self) -> npt.NDArray[Any]:
         return Rotation.from_matrix(

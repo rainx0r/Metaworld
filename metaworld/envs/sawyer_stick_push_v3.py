@@ -99,7 +99,7 @@ class SawyerStickPushEnvV3(SawyerXYZEnv):
     def _get_pos_objects(self) -> npt.NDArray[Any]:
         return np.hstack(
             (
-                self.get_body_com("stick").copy(),
+                self.get_body_com("stick"),
                 self._get_site_pos("insertion") + np.array([0.0, 0.09, 0.0]),
             )
         )
