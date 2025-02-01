@@ -1,6 +1,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 
 #define DEFAULT_VALUE_AT_MARGIN 0.1
 
