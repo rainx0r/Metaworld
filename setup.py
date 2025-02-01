@@ -16,6 +16,7 @@ ext_modules = [
             "metaworld_cpp/rewards.cpp",
         ],
         include_dirs=[pathlib.Path(mujoco.HEADERS_DIR).parent],
+        extra_compile_args=["-std=c++17"],
     ),
 ]
 
