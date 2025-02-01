@@ -1,12 +1,17 @@
+# ruff: noqa: E402
 """The public-facing Metaworld API."""
 
 from __future__ import annotations
 
 import abc
+import ctypes
 import pickle
+import sys
 from collections import OrderedDict
 from functools import partial
 from typing import Any, Literal, Union
+
+sys.setdlopenflags(sys.getdlopenflags() | ctypes.RTLD_GLOBAL)
 
 import gymnasium as gym  # type: ignore
 import numpy as np
@@ -26,11 +31,11 @@ from metaworld.types import Task  # type: ignore
 from metaworld.wrappers import (
     AutoTerminateOnSuccessWrapper,
     CheckpointWrapper,
+    NormalizeRewardGymnasium,
+    NormalizeRewardsExponential,
     OneHotWrapper,
     PseudoRandomTaskSelectWrapper,
     RandomTaskSelectWrapper,
-    NormalizeRewardGymnasium,
-    NormalizeRewardsExponential
 )
 
 
@@ -363,11 +368,13 @@ def _init_each_env(
     env_id: int | None = None,
     num_tasks: int | None = None,
     task_select: Literal["random", "pseudorandom"] = "random",
-    reward_function_version: Literal['v1', 'v2'] = 'v2',
-    reward_normalization_method: Union[Literal['gymnasium', 'exponential'], None] = None,
+    reward_function_version: Literal["v1", "v2"] = "v2",
+    reward_normalization_method: Union[
+        Literal["gymnasium", "exponential"], None
+    ] = None,
     reward_alpha: float = 0.001,
     *args,
-    **kwargs
+    **kwargs,
 ) -> gym.Env:
     env: gym.Env = env_cls(reward_function_version=reward_function_version)
     if seed is not None:
@@ -379,10 +386,10 @@ def _init_each_env(
         assert env_id is not None, "Need to pass env_id through constructor"
         assert num_tasks is not None, "Need to pass num_tasks through constructor"
         env = OneHotWrapper(env, env_id, num_tasks)
-    if reward_normalization_method == 'gymnasium':
-        print('gymnasium ', env_cls)
+    if reward_normalization_method == "gymnasium":
+        print("gymnasium ", env_cls)
         env = NormalizeRewardGymnasium(env)
-    elif reward_normalization_method == 'exponential':
+    elif reward_normalization_method == "exponential":
         env = NormalizeRewardsExponential(reward_alpha=reward_alpha, env=env)
     env = gym.wrappers.RecordEpisodeStatistics(env)
 
@@ -407,7 +414,7 @@ def make_mt_envs(
     terminate_on_success: bool = False,
     vector_strategy: Literal["sync", "async"] = "sync",
     task_select: Literal["random", "pseudorandom"] = "random",
-    reward_function_version: Literal['v1', 'v2'] = 'v2',
+    reward_function_version: Literal["v1", "v2"] = "v2",
     *args,
     **kwargs,
 ) -> gym.Env | gym.vector.VectorEnv:
@@ -426,7 +433,7 @@ def make_mt_envs(
             terminate_on_success=terminate_on_success,
             reward_function_version=reward_function_version,
             *args,
-            **kwargs
+            **kwargs,
         )
     elif name == "MT10" or name == "MT50":
         benchmark = globals()[name](seed=seed)
@@ -451,7 +458,7 @@ def make_mt_envs(
                     task_select=task_select,
                     reward_function_version=reward_function_version,
                     *args,
-                    **kwargs
+                    **kwargs,
                 )
                 for env_id, (name, env_cls) in enumerate(
                     benchmark.train_classes.items()
@@ -569,10 +576,10 @@ def register_mw_envs() -> None:
         *args,
         **lamb_kwargs,
     ):
-        if 'num_goals' in lamb_kwargs:
+        if "num_goals" in lamb_kwargs:
             global _N_GOALS
-            _N_GOALS = lamb_kwargs['num_goals']
-            del lamb_kwargs['num_goals']
+            _N_GOALS = lamb_kwargs["num_goals"]
+            del lamb_kwargs["num_goals"]
         return make_mt_envs(  # type: ignore
             mt_bench,
             seed=seed,
@@ -604,7 +611,13 @@ def register_mw_envs() -> None:
 
     register(
         id="Meta-World/MT1",
-        entry_point=lambda env_name, use_one_hot=False, vector_strategy="sync", seed=None, num_envs=None, *args, **kwargs: _mt_bench_vector_entry_point(
+        entry_point=lambda env_name,
+        use_one_hot=False,
+        vector_strategy="sync",
+        seed=None,
+        num_envs=None,
+        *args,
+        **kwargs: _mt_bench_vector_entry_point(
             env_name,  # Pass as positional argument
             vector_strategy,
             seed,
@@ -619,7 +632,11 @@ def register_mw_envs() -> None:
     for split in ["train", "test"]:
         register(
             id=f"Meta-World/ML1-{split}",
-            vector_entry_point=lambda env_name, vector_strategy="sync", seed=None, *args, **kwargs: _ml_bench_vector_entry_point(
+            vector_entry_point=lambda env_name,
+            vector_strategy="sync",
+            seed=None,
+            *args,
+            **kwargs: _ml_bench_vector_entry_point(
                 env_name,
                 split,
                 vector_strategy,
@@ -632,7 +649,9 @@ def register_mw_envs() -> None:
 
     register(
         id="Meta-World/goal_hidden",
-        entry_point=lambda env_name, seed: ALL_V3_ENVIRONMENTS_GOAL_HIDDEN[env_name + "-goal-hidden" if "-goal-hidden" not in env_name else env_name](  # type: ignore
+        entry_point=lambda env_name, seed: ALL_V3_ENVIRONMENTS_GOAL_HIDDEN[
+            env_name + "-goal-hidden" if "-goal-hidden" not in env_name else env_name
+        ](  # type: ignore
             seed=seed,
         ),
         kwargs={},
@@ -640,7 +659,11 @@ def register_mw_envs() -> None:
 
     register(
         id="Meta-World/goal_observable",
-        entry_point=lambda env_name, seed: ALL_V3_ENVIRONMENTS_GOAL_OBSERVABLE[env_name + "-goal-observable" if "-goal-observable" not in env_name else env_name](  # type: ignore
+        entry_point=lambda env_name, seed: ALL_V3_ENVIRONMENTS_GOAL_OBSERVABLE[
+            env_name + "-goal-observable"
+            if "-goal-observable" not in env_name
+            else env_name
+        ](  # type: ignore
             seed=seed
         ),
         kwargs={},
@@ -649,7 +672,12 @@ def register_mw_envs() -> None:
     for mt_bench in ["MT10", "MT50"]:
         register(
             id=f"Meta-World/{mt_bench}",
-            vector_entry_point=lambda vector_strategy="sync", seed=None, use_one_hot=False, *args, _mt_bench=mt_bench, **kwargs: _mt_bench_vector_entry_point(
+            vector_entry_point=lambda vector_strategy="sync",
+            seed=None,
+            use_one_hot=False,
+            *args,
+            _mt_bench=mt_bench,
+            **kwargs: _mt_bench_vector_entry_point(
                 _mt_bench,  # positional arguments
                 vector_strategy,
                 seed,
@@ -664,7 +692,12 @@ def register_mw_envs() -> None:
         for split in ["train", "test"]:
             register(
                 id=f"Meta-World/{ml_bench}-{split}",  # Fixed f-string
-                vector_entry_point=lambda vector_strategy="sync", seed=None, *args, _ml_bench=ml_bench, _split=split, **kwargs: _ml_bench_vector_entry_point(  # Bind current values as defaults  # Bind current values as defaults
+                vector_entry_point=lambda vector_strategy="sync",
+                seed=None,
+                *args,
+                _ml_bench=ml_bench,
+                _split=split,
+                **kwargs: _ml_bench_vector_entry_point(  # Bind current values as defaults  # Bind current values as defaults
                     _ml_bench,
                     _split,
                     vector_strategy,
@@ -707,7 +740,13 @@ def register_mw_envs() -> None:
 
     register(
         id="Meta-World/custom-mt-envs",
-        vector_entry_point=lambda vector_strategy, envs_list, seed=None, use_one_hot=False, num_envs=None, *args, **kwargs: _custom_mt_vector_entry_point(
+        vector_entry_point=lambda vector_strategy,
+        envs_list,
+        seed=None,
+        use_one_hot=False,
+        num_envs=None,
+        *args,
+        **kwargs: _custom_mt_vector_entry_point(
             vector_strategy, envs_list, seed, use_one_hot, num_envs, *args, **kwargs
         ),
         kwargs={},
@@ -733,7 +772,14 @@ def register_mw_envs() -> None:
 
     register(
         id="Meta-World/custom-ml-envs",
-        vector_entry_point=lambda vector_strategy, train_envs, test_envs, meta_batch_size=20, seed=None, num_envs=None, *args, **kwargs: _custom_ml_vector_entry_point(
+        vector_entry_point=lambda vector_strategy,
+        train_envs,
+        test_envs,
+        meta_batch_size=20,
+        seed=None,
+        num_envs=None,
+        *args,
+        **kwargs: _custom_ml_vector_entry_point(
             vector_strategy,
             train_envs,
             test_envs,
