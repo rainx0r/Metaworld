@@ -26,7 +26,7 @@ from metaworld.env_dict import (
     ALL_V3_ENVIRONMENTS_GOAL_HIDDEN,
     ALL_V3_ENVIRONMENTS_GOAL_OBSERVABLE,
 )
-from metaworld.sawyer_xyz_env import SawyerXYZEnv  # type: ignore
+from metaworld.sawyer_xyz_env import RenderMode, SawyerXYZEnv  # type: ignore
 from metaworld.types import Task  # type: ignore
 from metaworld.wrappers import (
     AutoTerminateOnSuccessWrapper,
@@ -373,10 +373,11 @@ def _init_each_env(
         Literal["gymnasium", "exponential"], None
     ] = None,
     reward_alpha: float = 0.001,
+    render_mode: RenderMode | None = None,
     *args,
     **kwargs,
 ) -> gym.Env:
-    env: gym.Env = env_cls(reward_function_version=reward_function_version)
+    env: gym.Env = env_cls(reward_function_version=reward_function_version, render_mode=render_mode)
     if seed is not None:
         env.seed(seed)  # type: ignore
     env = gym.wrappers.TimeLimit(env, max_episode_steps or env.max_path_length)  # type: ignore
