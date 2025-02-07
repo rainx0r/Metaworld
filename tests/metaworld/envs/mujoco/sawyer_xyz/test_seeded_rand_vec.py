@@ -18,7 +18,7 @@ def test_observations_match(env_name):
     assert (obs1 == obs2).all()
 
     for i in range(env1.max_path_length):
-        a = np.random.uniform(low=-1, high=-1, size=4)
+        a = np.random.uniform(low=-1, high=-1, size=4).astype(np.float32)
         obs1, r1, done1, _, _ = env1.step(a)
         obs2, r2, done2, _, _ = enV3.step(a)
         assert (obs1 == obs2).all()

@@ -27,12 +27,12 @@ class ScriptedPolicyAgent(evaluation.MetaLearningAgent):
 
     def adapt_action(
         self, observations: npt.NDArray[np.float64]
-    ) -> tuple[npt.NDArray[np.float64], dict[str, npt.NDArray]]:
+    ) -> tuple[npt.NDArray[np.float32], dict[str, npt.NDArray]]:
         actions: list[npt.NDArray[np.float32]] = []
         num_envs = len(self.policies)
         for env_idx in range(num_envs):
             actions.append(self.policies[env_idx].get_action(observations[env_idx]))
-        stacked_actions = np.stack(actions, axis=0, dtype=np.float64)
+        stacked_actions = np.stack(actions, axis=0, dtype=np.float32)
         return stacked_actions, {
             "log_probs": np.ones((num_envs,)),
             "means": stacked_actions,
@@ -41,12 +41,12 @@ class ScriptedPolicyAgent(evaluation.MetaLearningAgent):
 
     def eval_action(
         self, observations: npt.NDArray[np.float64]
-    ) -> npt.NDArray[np.float64]:
+    ) -> npt.NDArray[np.float32]:
         actions: list[npt.NDArray[np.float32]] = []
         num_envs = len(self.policies)
         for env_idx in range(num_envs):
             actions.append(self.policies[env_idx].get_action(observations[env_idx]))
-        stacked_actions = np.stack(actions, axis=0, dtype=np.float64)
+        stacked_actions = np.stack(actions, axis=0, dtype=np.float32)
         return stacked_actions
 
     def adapt(self, rollouts: evaluation.Rollout) -> None:
